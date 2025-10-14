@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { connectWallet } from '../web3/wallet';
-// 1. Import NavLink
 import { NavLink } from 'react-router-dom';
 import { Gamepad2, Menu, X, Wallet } from 'lucide-react';
 
-const Navbar = () => {
+const Navbar = ({ account, handleConnect }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [account, setAccount] = useState(null);
 
-  // 2. Update href to actual route paths
   const navLinks = [
     { name: 'Game', to: '/game' },
-    { name: 'Inventory', to: '/inventory' },
+    { name: 'ProfilePage', to: '/profile' },
     { name: 'Marketplace', to: '/marketplace' }
   ];
 
@@ -25,15 +21,9 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleConnect = async () => {
-    const wallet = await connectWallet();
-    if (wallet) setAccount(wallet.account);
-  };
-
   return (
     <>
-      {/* Inline Styles (unchanged) */}
-      <style jsx>{`
+      <style>{`
         /* ... your existing styles ... */
         .navbar-transition {
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -140,7 +130,6 @@ const Navbar = () => {
         }
       `}</style>
 
-      {/* Navbar */}
       <nav 
         className={`fixed top-0 left-0 right-0 z-50 navbar-transition ${
           isScrolled 
@@ -159,7 +148,6 @@ const Navbar = () => {
             isScrolled ? 'px-8 py-4' : 'px-8 py-6'
           }`}>
             
-            {/* 3. Update Logo to be a NavLink to the home page */}
             <NavLink to="/" className="flex items-center space-x-3 group">
               <div className={`p-2 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl logo-glow navbar-transition group-hover:scale-110 ${
                 isScrolled ? 'scale-90' : 'scale-100'
@@ -173,14 +161,11 @@ const Navbar = () => {
               </span>
             </NavLink>
 
-            {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center space-x-2">
               {navLinks.map((link) => (
-                // 4. Replace <a> with <NavLink>
                 <NavLink
                   key={link.name}
                   to={link.to}
-                  // 5. Add styling for the active link
                   className={({ isActive }) => `
                     nav-link px-6 py-3 rounded-full font-medium transition-all duration-300 navbar-transition 
                     ${isScrolled ? 'text-sm' : 'text-base'}
@@ -192,9 +177,7 @@ const Navbar = () => {
               ))}
             </div>
 
-            {/* Right Side Actions */}
             <div className="flex items-center space-x-4">
-              {/* Connect Wallet Button */}
               <button
                 onClick={handleConnect}
                 className={`hidden lg:flex items-center space-x-2 btn-primary text-white font-bold rounded-full transition-all duration-300 navbar-transition cursor-pointer ${
@@ -204,12 +187,11 @@ const Navbar = () => {
                 <Wallet className={`${isScrolled ? 'w-4 h-4' : 'w-5 h-5'}`} />
                 <span>
                   {account
-                    ? account.slice(0, 6) + "..." + account.slice(-4) // show short address
+                    ? `${account.slice(0, 6)}...${account.slice(-4)}`
                     : "Connect Wallet"}
                 </span>
               </button>
 
-              {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 className={`lg:hidden p-2 rounded-xl glass-effect border border-cyan-400/30 text-white hover:border-cyan-400/60 transition-all duration-300 navbar-transition ${
@@ -226,7 +208,6 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className={`lg:hidden mt-4 navbar-transition ${
             isScrolled 
@@ -236,7 +217,6 @@ const Navbar = () => {
             <div className="glass-effect border border-white/10 rounded-2xl overflow-hidden mobile-menu">
               <div className="p-6 space-y-4">
                 {navLinks.map((link) => (
-                   // 6. Replace <a> with <NavLink> for mobile view
                   <NavLink
                     key={link.name}
                     to={link.to}
@@ -258,7 +238,7 @@ const Navbar = () => {
                     <Wallet className="w-5 h-5" />
                     <span>
                       {account
-                        ? account.slice(0, 6) + "..." + account.slice(-4)
+                        ? `${account.slice(0, 6)}...${account.slice(-4)}`
                         : "Connect Wallet"}
                     </span>
                   </button>

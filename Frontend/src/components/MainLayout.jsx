@@ -2,12 +2,14 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
 
-const MainLayout = () => {
+// Accept account and handleConnect as props
+const MainLayout = ({ account, handleConnect }) => {
   return (
     <>
-      <Navbar />
+      <Navbar account={account} handleConnect={handleConnect} />
       <main>
-        <Outlet />
+        {/* FIX: Pass the account down to child routes using the context prop */}
+        <Outlet context={{ account }} />
       </main>
     </>
   );
