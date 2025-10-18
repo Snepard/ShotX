@@ -1,8 +1,10 @@
 import { ethers } from 'ethers';
 import axios from 'axios';
+import ShotXTokenABI from '../contracts/ShotXTokenABI.json';
 
 // The backend URL is now correctly pointed to port 5001.
-const API_URL = 'http://localhost:5001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const SHOTX_CONTRACT_ADDRESS = import.meta.env.VITE_SHOTX_CONTRACT_ADDRESS;
 
 export const verifyExistingLogin = async () => {
     try {
@@ -125,3 +127,17 @@ export const convertScoreToCoins = async (walletAddress) => {
     }
 };
 
+export const getShotXBalance = async (userAddress) => {
+    if (!window.ethereum || !userAddress) return '0';
+
+    try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const contract = new ethers.Contract(SHOTX_CONTRACT_ADDRESS, ShotXTokenABI, provider);
+        const balanceBigInt = await contract.balanceOf(userAddress);
+        const formattedBalance = ethers.formatUnits(balanceBigInt, 18);
+        return formattedBalance;
+    } catch (error) {
+        console.error("❌ Failed to fetch ShotX balance:", error);
+        return '0';
+    }
+};

@@ -29,8 +29,8 @@ const UserSchema = new mongoose.Schema({
     },
     // The player's on-chain ShotX coin balance (can be synced periodically)
     shotxBalance: {
-        type: Number,
-        default: 0,
+        type: String,
+        default: '0',
     },
     // The highest score achieved by the player in a single game session
     highestScore: {

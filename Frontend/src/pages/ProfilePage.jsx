@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom"; // Import the Link component
 import { Pencil, LogOut, Trophy, Wallet, Check, X } from "lucide-react";
 import { motion, useInView } from "framer-motion";
-import { updateUserProfile } from '../services/blockchainService';
+import { updateUserProfile, getShotXBalance } from '../services/blockchainService';
 
 // ================= BACKGROUND COMPONENT =================
 const SpaceBackground = () => {
@@ -207,6 +207,7 @@ export default function ProfilePage({ account, handleLogout }) {
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const fileInputRef = useRef(null);
+  const [shotxBalance, setShotxBalance] = useState('0.00');
 
   // --- INTERNAL HANDLER FUNCTIONS ---
 
@@ -224,6 +225,21 @@ export default function ProfilePage({ account, handleLogout }) {
     // TODO: Add logic to refresh user data state in App.jsx
 };
 
+  // FETCHING SHOTX BALANCE
+
+  useEffect(() => {
+    if (account?.walletAddress) {
+      const cachedBalance = parseFloat(account.shotxBalance || '0').toFixed(2);
+      setShotxBalance(cachedBalance);
+
+      const fetchLiveBalance = async () => {
+        const liveBalance = await getShotXBalance(account.walletAddress);
+        setShotxBalance(parseFloat(liveBalance).toFixed(2));
+      };
+      
+      fetchLiveBalance();
+    }
+  }, [account]);
 
   // --- UI EVENT TRIGGERS ---
   
@@ -369,7 +385,7 @@ export default function ProfilePage({ account, handleLogout }) {
 
                 {/* Bottom Row: Stats */}
                 <div className="flex flex-wrap justify-center md:justify-start items-center gap-4 w-full pt-6 border-t border-cyan-500/20">
-                    <StatBox title="ShotX Balance" value={account.shotxBalance || 0} icon={<Wallet size={24} />} isCurrency={true} />
+                    <StatBox title="ShotX Balance" value={parseFloat(shotxBalance)} icon={<Wallet size={24} />} />
                     <StatBox title="Highest Score" value={account.highestScore || 0} icon={<Trophy size={24} />} />
                 </div>
             </motion.div>

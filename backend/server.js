@@ -79,6 +79,11 @@ app.post('/auth/login', async (req, res) => {
                 console.log(`5. ✅ User FOUND in database.`);
             }
 
+            console.log(`Syncing on-chain balance for ${lowerCaseAddress}`);
+            const latestBalance = await getOnChainBalance(lowerCaseAddress);
+            user.shotxBalance = latestBalance;
+            await user.save();
+
             const token = jwt.sign({ address: lowerCaseAddress }, JWT_SECRET, { expiresIn: '1h' });
             
             res.cookie('token', token, {
@@ -215,6 +220,9 @@ app.post('/api/score/convert', async (req, res) => {
     await tx.wait();
     
     console.log(`Transaction confirmed! Minted ${coinsToMint} SXC.`);
+    console.log(`Syncing new on-chain balance for ${lowerCaseAddress}`);
+    const newTotalBalance = await getOnChainBalance(lowerCaseAddress);
+    user.shotxBalance = newTotalBalance;
     user.accumulatedScore = 0;
     await user.save();
     
@@ -225,6 +233,15 @@ app.post('/api/score/convert', async (req, res) => {
   }
 });
 
+const getOnChainBalance = async (userAddress) => {
+    try {
+        const balanceBigInt = await contract.balanceOf(userAddress);
+        return ethers.formatUnits(balanceBigInt, 18);
+    } catch (error) {
+        console.error(`Failed to fetch balance for ${userAddress}:`, error);
+        return '0';
+    }
+};
 
 // --- SERVER LISTENING ---
 app.listen(PORT, () => {
