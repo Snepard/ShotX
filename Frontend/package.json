@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.13",
+    "axios": "^1.12.2",
     "ethers": "^6.15.0",
     "framer-motion": "^12.23.19",
     "gsap": "^3.13.0",

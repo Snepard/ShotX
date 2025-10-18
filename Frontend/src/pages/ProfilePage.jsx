@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Pencil, LogOut, Trophy, Wallet } from "lucide-react";
 import { motion, useInView } from "framer-motion";
+import { fetchUserProfile } from '../services/blockchainService'; // MODIFIED: Import the API service
 
 // ================= BACKGROUND COMPONENT =================
 // No changes needed in this component
@@ -13,7 +14,7 @@ const SpaceBackground = () => {
     const ctx = canvas.getContext("2d");
     let animationFrameId;
 
-    const PALETTE = ["#00FFFF", "#00E5EE", "#20B2AA", "#40E0D0"]; 
+    const PALETTE = ["#00FFFF", "#00E5EE", "#20B2AA", "#40E0D0"];
 
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
@@ -120,13 +121,7 @@ const SpaceBackground = () => {
 };
 
 // ================= MOCK DATA & ASSETS =================
-// No changes needed
-const mockUserData = {
-  username: "Yaroslav Isakov",
-  walletAddress: "0x1A2b3c4d5E6f7g8H9i0Jk1L2m3N4o5P6q7R8s9T0",
-  shotxBalance: 1560.21,
-  highestScore: 98500,
-};
+// Mock NFT data can remain for now, as it's separate from user data
 const mockNfts = [
   { id: 1, name: "Cosmic Ranger", imageUrl: "/nfts/skin1.png" },
   { id: 2, name: "Void Hunter", imageUrl: "/nfts/skin2.png" },
@@ -143,7 +138,7 @@ const EmptyInventoryIcon = () => (
 
 
 // ================= HELPER & UI COMPONENTS =================
-// No changes needed
+// No changes needed in these components
 const AnimatedStat = ({ value, isCurrency = false }) => {
     const ref = useRef(null);
     const isInView = useInView(ref, { once: true });
@@ -216,10 +211,41 @@ const NftCard = ({ nft }) => (
 
 
 // ================= MAIN PROFILE PAGE COMPONENT =================
-export default function ProfilePage() {
-  const [userData] = useState(mockUserData);
-  const [nfts] = useState(mockNfts); 
+export default function ProfilePage({ account }) { // MODIFIED: Accept 'account' prop
+  const [userData, setUserData] = useState(null); // MODIFIED: State for fetched user data
+  const [nfts] = useState(mockNfts); // NFT data can remain mock for now
 
+  // MODIFIED: Fetch user data when the component mounts or the account changes
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      if (account) {
+        console.log("Fetching profile for account:", account);
+        const profileData = await fetchUserProfile(account);
+        if (profileData) {
+          setUserData(profileData);
+          console.log("Profile data loaded:", profileData);
+        } else {
+            console.log("Failed to fetch profile data.");
+        }
+      }
+    };
+    loadUserProfile();
+  }, [account]); // Dependency array ensures this runs when 'account' is available
+
+  // MODIFIED: Show a loading state while fetching data
+  if (!userData) {
+    return (
+      <div className="relative min-h-screen text-white font-sans flex items-center justify-center">
+        <SpaceBackground />
+        <div className="relative z-10 text-center">
+            <h1 className="text-3xl font-bold font-orbitron text-glow">Loading Profile...</h1>
+            <p className="text-cyan-200/60 mt-2">Accessing secure user data from the database.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Render logic using live userData ---
   const truncatedAddress = userData.walletAddress
     ? `${userData.walletAddress.substring(0, 6)}...${userData.walletAddress.substring(userData.walletAddress.length - 4)}`
     : "";
@@ -246,7 +272,6 @@ export default function ProfilePage() {
   };
 
   return (
-    // FIX: Removed bg-slate-900 from this div
     <div className="relative min-h-screen text-white font-sans">
       <style>{pageStyles}</style>
       <SpaceBackground />
@@ -267,14 +292,16 @@ export default function ProfilePage() {
                     {/* User Info */}
                     <div className="flex items-center gap-5">
                         <div className="relative group cursor-pointer">
-                            <img src="../DefaultProfile.jpg" alt="Profile" className="w-24 h-24 rounded-full border-2 border-cyan-500 object-cover transition-all duration-300 group-hover:border-cyan-300 group-hover:scale-105" />
+                            {/* MODIFIED: Use dynamic profile picture URL */}
+                            <img src={userData.profilePic?.url || "../DefaultProfile.jpg"} alt="Profile" className="w-24 h-24 rounded-full border-2 border-cyan-500 object-cover transition-all duration-300 group-hover:border-cyan-300 group-hover:scale-105" />
                             <div className="absolute inset-0 bg-black/70 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Pencil className="h-6 w-6 text-cyan-300" />
                             </div>
                         </div>
                         <div className="text-center md:text-left">
                             <div className="flex items-center justify-center md:justify-start gap-2">
-                                <h1 className="text-3xl font-bold text-white font-orbitron">{userData.username}</h1>
+                                {/* MODIFIED: Use dynamic username */}
+                                <h1 className="text-3xl font-bold text-white font-orbitron">{userData.username || 'New Player'}</h1>
                                 <motion.button className="text-gray-400 hover:text-cyan-400" whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}>
                                     <Pencil className="h-4 w-4" />
                                 </motion.button>
@@ -295,12 +322,13 @@ export default function ProfilePage() {
 
                 {/* Bottom Row: Stats */}
                 <div className="flex flex-wrap justify-center md:justify-start items-center gap-4 w-full pt-6 border-t border-cyan-500/20">
-                    <StatBox title="ShotX Balance" value={userData.shotxBalance} icon={<Wallet size={24} />} isCurrency={true} />
-                    <StatBox title="Highest Score" value={userData.highestScore} icon={<Trophy size={24} />} />
+                    {/* MODIFIED: Use dynamic data */}
+                    <StatBox title="ShotX Balance" value={userData.shotxBalance || 0} icon={<Wallet size={24} />} isCurrency={true} />
+                    <StatBox title="Highest Score" value={userData.highestScore || 0} icon={<Trophy size={24} />} />
                 </div>
             </motion.div>
 
-            {/* Inventory Section */}
+            {/* Inventory Section (uses mock data for now) */}
             <motion.div className="w-full p-4 md:p-6 mt-10" variants={itemVariants}>
                 <h2 className="text-4xl font-bold font-orbitron text-white mb-6 text-glow">Inventory</h2>
                 {hasNfts ? (
@@ -322,7 +350,7 @@ export default function ProfilePage() {
                             whileHover={{ scale: 1.05, backgroundColor: "#00FFFF", boxShadow: "0 0 20px #00FFFF" }}
                             whileTap={{ scale: 0.95 }}
                         >
-                           Visit Marketplace
+                            Visit Marketplace
                         </motion.button>
                     </div>
                 )}

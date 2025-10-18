@@ -1,473 +1,107 @@
+// --- Core & Utility Imports ---
 const express = require('express');
 const cors = require('cors');
-const { ethers } = require('ethers');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
+const mongoose = require('mongoose');
+const { uploader } = require('cloudinary').v2;
 
-// --- Blockchain Setup ---
+// --- Local Module Imports ---
+const { ethers } = require('ethers');
+const contractABI = require('./config/contractABI');
+const User = require('./models/User');
+// MODIFIED: This line is the critical fix. It imports the function directly.
+const configureCloudinary = require('./config/cloudinary');
+const configureMulter = require('./config/multer');
+
+// --- INITIALIZATION ---
+const app = express();
+const PORT = process.env.PORT || 5001;
+// This line will now work correctly.
+configureCloudinary();
+
+// --- MIDDLEWARE ---
+app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// --- DATABASE CONNECTION ---
+console.log("Attempting to connect to MongoDB...");
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB connection established successfully."))
+  .catch(err => console.error("❌ MongoDB connection error:", err));
+
+// --- BLOCKCHAIN SETUP ---
 const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
 const wallet = new ethers.Wallet(process.env.BACKEND_WALLET_PRIVATE_KEY, provider);
-const contractABI = [
-    {
-      "inputs": [],
-      "stateMutability": "nonpayable",
-      "type": "constructor"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "spender",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "allowance",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "needed",
-          "type": "uint256"
-        }
-      ],
-      "name": "ERC20InsufficientAllowance",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "sender",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "balance",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "needed",
-          "type": "uint256"
-        }
-      ],
-      "name": "ERC20InsufficientBalance",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "approver",
-          "type": "address"
-        }
-      ],
-      "name": "ERC20InvalidApprover",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "receiver",
-          "type": "address"
-        }
-      ],
-      "name": "ERC20InvalidReceiver",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "sender",
-          "type": "address"
-        }
-      ],
-      "name": "ERC20InvalidSender",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "spender",
-          "type": "address"
-        }
-      ],
-      "name": "ERC20InvalidSpender",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "owner",
-          "type": "address"
-        }
-      ],
-      "name": "OwnableInvalidOwner",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        }
-      ],
-      "name": "OwnableUnauthorizedAccount",
-      "type": "error"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "owner",
-          "type": "address"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "spender",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "value",
-          "type": "uint256"
-        }
-      ],
-      "name": "Approval",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "previousOwner",
-          "type": "address"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "newOwner",
-          "type": "address"
-        }
-      ],
-      "name": "OwnershipTransferred",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "from",
-          "type": "address"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "to",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "value",
-          "type": "uint256"
-        }
-      ],
-      "name": "Transfer",
-      "type": "event"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "owner",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "spender",
-          "type": "address"
-        }
-      ],
-      "name": "allowance",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "spender",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "value",
-          "type": "uint256"
-        }
-      ],
-      "name": "approve",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "player",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "awardCoins",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "account",
-          "type": "address"
-        }
-      ],
-      "name": "balanceOf",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "decimals",
-      "outputs": [
-        {
-          "internalType": "uint8",
-          "name": "",
-          "type": "uint8"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "name",
-      "outputs": [
-        {
-          "internalType": "string",
-          "name": "",
-          "type": "string"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "owner",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "renounceOwnership",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "symbol",
-      "outputs": [
-        {
-          "internalType": "string",
-          "name": "",
-          "type": "string"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "totalSupply",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "to",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "value",
-          "type": "uint256"
-        }
-      ],
-      "name": "transfer",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "from",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "to",
-          "type": "address"
-        },
-        {
-          "internalType": "uint256",
-          "name": "value",
-          "type": "uint256"
-        }
-      ],
-      "name": "transferFrom",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "newOwner",
-          "type": "address"
-        }
-      ],
-      "name": "transferOwnership",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    }
-  ];
-
 const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractABI, wallet);
+console.log(`✅ Backend server wallet address: ${wallet.address}`);
 
 // --- JWT Secret ---
 const JWT_SECRET = 'your-super-secret-key-for-shotx';
 
-const app = express();
-const PORT = 3001;
 
-// --- Middleware Setup ---
-// Allow requests from your frontend and enable credentials (cookies)
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
-app.use(express.json());
-app.use(cookieParser()); // Use cookie-parser
+// =================================================================
+// --- AUTHENTICATION & USER CREATION ENDPOINTS ---
+// =================================================================
 
-const playerData = {};
-
-console.log(`Backend server wallet address: ${wallet.address}`);
-
-// --- AUTHENTICATION ENDPOINTS ---
 app.get('/auth/message', (req, res) => {
+  console.log("LOG: Received request for auth message.");
   res.json({ message: `Welcome to ShotX! Sign this message to log in. Nonce: ${Date.now()}` });
 });
 
 app.post('/auth/login', async (req, res) => {
-  const { address, signature, message } = req.body;
-  try {
-    const recoveredAddress = ethers.verifyMessage(message, signature);
-
-    if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
-      const token = jwt.sign({ address }, JWT_SECRET, { expiresIn: '1h' });
-      
-      res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 3600000, // 1 hour
-      });
-      res.status(200).json({ message: "Logged in successfully" });
-    } else {
-      res.status(401).send("Invalid signature");
+    console.log("1. Received /auth/login request.");
+    const { address, signature, message } = req.body;
+    if (!address || !signature || !message) {
+        console.error("FATAL ERROR: Login request is missing address, signature, or message.");
+        return res.status(400).send("Missing login credentials.");
     }
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).send("Error during login");
-  }
+    console.log(`2. Attempting to verify signature for address: ${address}`);
+
+    try {
+        const recoveredAddress = ethers.verifyMessage(message, signature);
+        console.log(`3. Signature recovered address: ${recoveredAddress}`);
+
+        if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
+            console.log("4. ✅ Signature VERIFIED. Checking database...");
+            const lowerCaseAddress = address.toLowerCase();
+            let user = await User.findOne({ walletAddress: lowerCaseAddress });
+
+            if (!user) {
+                console.log(`5. User not found. Creating new user in DB...`);
+                user = new User({ walletAddress: lowerCaseAddress });
+                await user.save();
+                console.log(`6. ✅ New user CREATED for address: ${lowerCaseAddress}`);
+            } else {
+                console.log(`5. ✅ User FOUND in database.`);
+            }
+
+            const token = jwt.sign({ address: lowerCaseAddress }, JWT_SECRET, { expiresIn: '1h' });
+            
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 3600000,
+            });
+            console.log("7. ✅ JWT cookie set. Sending success response.");
+            res.status(200).json({ message: "Logged in successfully", user });
+        } else {
+            console.error("FATAL ERROR: Signature verification failed. Recovered address does not match.");
+            res.status(401).send("Invalid signature");
+        }
+    } catch (error) {
+        console.error("FATAL ERROR: An error occurred during the login process:", error);
+        res.status(500).send("Error during login");
+    }
 });
 
 app.get('/auth/verify', (req, res) => {
   const token = req.cookies.token;
-  if (!token) {
-    return res.status(401).json({ loggedIn: false });
-  }
+  if (!token) return res.status(401).json({ loggedIn: false });
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     res.json({ loggedIn: true, address: decoded.address });
@@ -476,54 +110,104 @@ app.get('/auth/verify', (req, res) => {
   }
 });
 
-// --- GAME DATA ENDPOINTS ---
-app.get('/player-data/:walletAddress', (req, res) => {
-  const { walletAddress } = req.params;
-  const data = playerData[walletAddress.toLowerCase()] || { accumulatedScore: 0, highestScore: 0 };
-  res.json(data);
+// =================================================================
+// --- GAME & PLAYER DATA ENDPOINTS ---
+// =================================================================
+
+app.get('/api/user/:walletAddress', async (req, res) => {
+    try {
+        const address = req.params.walletAddress.toLowerCase();
+        const user = await User.findOne({ walletAddress: address });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found. Please log in first.' });
+        }
+        res.status(200).json(user);
+    } catch (error) {
+        console.error("Error fetching user data:", error);
+        res.status(500).json({ message: 'Server error occurred.' });
+    }
 });
 
-app.post('/update-score', (req, res) => {
+const upload = configureMulter();
+app.put('/api/user/:walletAddress/profile', upload.single('profilePic'), async (req, res) => {
+    try {
+        const { username } = req.body;
+        const address = req.params.walletAddress.toLowerCase();
+        const user = await User.findOne({ walletAddress: address });
+
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+        
+        if (username) user.username = username;
+
+        if (req.file) {
+            if (user.profilePic && user.profilePic.public_id) {
+                await uploader.destroy(user.profilePic.public_id);
+            }
+            const result = await uploader.upload(req.file.path, { folder: "shotx_profiles" });
+            user.profilePic = {
+                public_id: result.public_id,
+                url: result.secure_url,
+            };
+        }
+
+        const updatedUser = await user.save();
+        res.status(200).json(updatedUser);
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ message: 'Server error occurred.' });
+    }
+});
+
+app.post('/api/score/update', async (req, res) => {
   const { walletAddress, newScore } = req.body;
   const lowerCaseAddress = walletAddress.toLowerCase();
 
-  if (!playerData[lowerCaseAddress]) {
-    playerData[lowerCaseAddress] = { accumulatedScore: 0, highestScore: 0 };
-  }
+  try {
+    const user = await User.findOneAndUpdate(
+        { walletAddress: lowerCaseAddress },
+        { 
+            $inc: { accumulatedScore: newScore },
+            $max: { highestScore: newScore }
+        },
+        { new: true, upsert: false } // `new: true` returns the updated doc
+    );
 
-  playerData[lowerCaseAddress].accumulatedScore += newScore;
-  if (newScore > playerData[lowerCaseAddress].highestScore) {
-    playerData[lowerCaseAddress].highestScore = newScore;
+    if (!user) return res.status(404).json({ message: "User not found." });
+
+    res.status(200).json({ message: "Score updated successfully", data: user });
+  } catch (error) {
+    console.error("Error updating score:", error);
+    res.status(500).json({ message: 'Server error while updating score.' });
   }
-  
-  res.status(200).json({ message: "Score updated successfully", data: playerData[lowerCaseAddress] });
 });
 
-app.post('/convert-score', async (req, res) => {
+app.post('/api/score/convert', async (req, res) => {
   const { walletAddress } = req.body;
   const lowerCaseAddress = walletAddress.toLowerCase();
 
-  if (!playerData[lowerCaseAddress] || playerData[lowerCaseAddress].accumulatedScore <= 0) {
-    return res.status(400).json({ message: "No score to convert." });
-  }
-
-  const scoreToConvert = playerData[lowerCaseAddress].accumulatedScore;
-  const coinsToMint = Math.floor(scoreToConvert / 10);
-  
-  if (coinsToMint <= 0) {
-    return res.status(400).json({ message: "Not enough score to convert to a single coin."});
-  }
-
-  const amountToMint = ethers.parseUnits(coinsToMint.toString(), 18);
-
-  console.log(`Attempting to mint ${coinsToMint} SXC for ${lowerCaseAddress}`);
-
   try {
+    const user = await User.findOne({ walletAddress: lowerCaseAddress });
+    if (!user || user.accumulatedScore <= 0) {
+      return res.status(400).json({ message: "No score to convert." });
+    }
+    
+    const scoreToConvert = user.accumulatedScore;
+    const coinsToMint = Math.floor(scoreToConvert / 10);
+    
+    if (coinsToMint <= 0) {
+      return res.status(400).json({ message: "Not enough score to convert." });
+    }
+    
+    const amountToMint = ethers.parseUnits(coinsToMint.toString(), 18);
+    console.log(`Attempting to mint ${coinsToMint} SXC for ${lowerCaseAddress}`);
+    
     const tx = await contract.awardCoins(lowerCaseAddress, amountToMint);
-    console.log(`Transaction sent! Hash: ${tx.hash}`);
     await tx.wait();
+    
     console.log(`Transaction confirmed! Minted ${coinsToMint} SXC.`);
-    playerData[lowerCaseAddress].accumulatedScore = 0;
+    user.accumulatedScore = 0;
+    await user.save();
+    
     res.status(200).json({ message: `Successfully converted score and minted ${coinsToMint} SXC!`, txHash: tx.hash });
   } catch (error) {
     console.error("Blockchain transaction failed:", error);
@@ -531,6 +215,8 @@ app.post('/convert-score', async (req, res) => {
   }
 });
 
+
+// --- SERVER LISTENING ---
 app.listen(PORT, () => {
-  console.log(`ShotX backend server is running on http://localhost:${PORT}`);
+  console.log(`🚀 ShotX backend server is running with celerity on http://localhost:${PORT}`);
 });
