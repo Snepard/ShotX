@@ -95,6 +95,23 @@ export const updateUserProfile = async (walletAddress, formData) => {
     }
 };
 
+export const updateScore = async (walletAddress, newScore) => {
+    try {
+        const response = await axios.post(`${API_URL}/api/score/update`, {
+            walletAddress,
+            newScore,
+        }, { withCredentials: true }); // Use credentials for protected route
+        
+        console.log('✅ Score saved:', response.data.message);
+        return response.data; // Returns { message, data: user }
+    } catch (error) {
+        const errorMsg = error.response?.data?.message || error.message;
+        console.error("❌ Failed to update score:", errorMsg);
+        alert(`Failed to save score: ${errorMsg}`);
+        return null;
+    }
+};
+
 export const convertScoreToCoins = async (walletAddress) => {
     try {
         const response = await axios.post(`${API_URL}/api/score/convert`, { walletAddress });

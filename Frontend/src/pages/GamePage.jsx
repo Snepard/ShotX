@@ -1,22 +1,44 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
+import { updateScore } from '../services/blockchainService';
 
 // --- GAME CLASSES ---
 class Player {
   constructor(x, y, radius, color) { this.x = x; this.y = y; this.radius = radius; this.color = color; }
   draw(c) { c.beginPath(); c.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); c.fillStyle = this.color; c.fill(); }
 }
+
+// --- MODIFICATION: Simplified Projectile class for motion blur trail ---
 class Projectile {
-  constructor(x, y, radius, color, velocity) { this.x = x; this.y = y; this.radius = radius; this.color = color; this.velocity = velocity; }
-  draw(c) { c.beginPath(); c.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); c.fillStyle = this.color; c.fill(); }
-  update(c) { this.draw(c); this.x += this.velocity.x; this.y += this.velocity.y; }
+  constructor(x, y, radius, color, velocity) {
+    this.x = x;
+    this.y = y;
+    this.radius = radius;
+    this.color = color;
+    this.velocity = velocity;
+  }
+
+  draw(c) {
+    c.beginPath();
+    c.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+    c.fillStyle = this.color;
+    c.fill();
+  }
+
+  update(c) {
+    this.draw(c);
+    this.x += this.velocity.x;
+    this.y += this.velocity.y;
+  }
 }
+
 class Enemy {
   constructor(x, y, radius, color, velocity) { this.x = x; this.y = y; this.radius = radius; this.color = color; this.velocity = velocity; }
   draw(c) { c.beginPath(); c.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); c.fillStyle = this.color; c.fill(); }
   update(c) { this.draw(c); this.x += this.velocity.x; this.y += this.velocity.y; }
 }
+
 const friction = 0.98;
 class Particle {
   constructor(x, y, radius, color, velocity) { this.x = x; this.y = y; this.radius = radius; this.color = color; this.velocity = velocity; this.alpha = 1; }
@@ -32,34 +54,12 @@ const PauseIcon = () => (
   </svg>
 );
 
-// --- BACKEND CALL ---
-const updateScoreOnServer = async (walletAddress, finalScore) => {
-  if (!walletAddress) {
-    console.warn("No wallet connected. Score will not be saved.");
-    return;
-  }
-  try {
-    const response = await fetch('http://localhost:3001/update-score', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        walletAddress: walletAddress,
-        newScore: finalScore,
-      }),
-    });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const result = await response.json();
-    console.log('Score saved:', result);
-    alert(`Score of ${finalScore} saved! Your new accumulated score is ${result.data.accumulatedScore}.`);
-  } catch (error) {
-    console.error("Failed to update score:", error);
-  }
-};
-
 const GamePage = ({ connectedAccount }) => {
   const [gameState, setGameState] = useState('menu');
   const [score, setScore] = useState(0);
   const [finalScore, setFinalScore] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [gameResult, setGameResult] = useState(null);
 
   const canvasRef = useRef(null);
   const playerRef = useRef(null);
@@ -73,31 +73,37 @@ const GamePage = ({ connectedAccount }) => {
   const isGameOverRef = useRef(false);
   const gameOverHandlerRef = useRef();
 
-  // keep refs in sync
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
   useEffect(() => { scoreRef.current = score; }, [score]);
 
-  // --- GAME OVER HANDLER ---
-  const handleGameOver = useCallback(() => {
-    if (isGameOverRef.current) return; // prevent multiple triggers
+  const handleGameOver = useCallback(async () => {
+    if (isGameOverRef.current) return;
     isGameOverRef.current = true;
     if (gameStateRef.current === 'gameOver') return;
 
     cancelAnimationFrame(animationIdRef.current);
     clearInterval(enemyIntervalRef.current);
 
-    const final = scoreRef.current; // get latest score synchronously
+    const final = scoreRef.current;
     setFinalScore(final);
-    updateScoreOnServer(connectedAccount, final);
 
     setGameState('gameOver');
+
+    if (connectedAccount) {
+        setIsSaving(true);
+        const result = await updateScore(connectedAccount, final);
+        if (result && result.data) {
+            setGameResult(result.data);
+        }
+        setIsSaving(false);
+    }
   }, [connectedAccount]);
 
   useEffect(() => { gameOverHandlerRef.current = handleGameOver; }, [handleGameOver]);
 
-  // --- INITIALIZATION ---
   const init = useCallback(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const x = canvas.width / 2;
     const y = canvas.height / 2;
     playerRef.current = new Player(x, y, 10, 'white');
@@ -107,11 +113,13 @@ const GamePage = ({ connectedAccount }) => {
     setScore(0);
     setFinalScore(0);
     isGameOverRef.current = false;
+    setGameResult(null);
+    setIsSaving(false);
   }, []);
 
-  // --- SPAWN ENEMIES ---
   const spawnEnemies = useCallback(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     enemyIntervalRef.current = setInterval(() => {
       const radius = Math.random() * (30 - 4) + 4;
       let x, y;
@@ -124,12 +132,11 @@ const GamePage = ({ connectedAccount }) => {
       }
       const color = `hsl(${Math.random() * 360}, 80%, 50%)`;
       const angle = Math.atan2(canvas.height / 2 - y, canvas.width / 2 - x);
-      const velocity = { x: Math.cos(angle), y: Math.sin(angle) };
+      const velocity = { x: Math.cos(angle) * 0.9, y: Math.sin(angle) * 0.9 };
       enemiesRef.current.push(new Enemy(x, y, radius, color, velocity));
     }, 1000);
   }, []);
 
-  // --- ANIMATION LOOP ---
   const animate = useCallback(() => {
     animationIdRef.current = requestAnimationFrame(animate);
     const c = canvasRef.current.getContext('2d');
@@ -141,12 +148,7 @@ const GamePage = ({ connectedAccount }) => {
 
     projectilesRef.current.forEach((p, i) => {
       p.update(c);
-      if (
-        p.x + p.radius < 0 ||
-        p.x - p.radius > canvasRef.current.width ||
-        p.y + p.radius < 0 ||
-        p.y - p.radius > canvasRef.current.height
-      ) {
+      if (p.x + p.radius < 0 || p.x - p.radius > canvasRef.current.width || p.y + p.radius < 0 || p.y - p.radius > canvasRef.current.height) {
         setTimeout(() => projectilesRef.current.splice(i, 1), 0);
       }
     });
@@ -157,7 +159,6 @@ const GamePage = ({ connectedAccount }) => {
       if (distPlayer - enemy.radius - playerRef.current.radius < 1) {
         return gameOverHandlerRef.current();
       }
-
       projectilesRef.current.forEach((projectile, pIndex) => {
         const distProj = Math.hypot(projectile.x - enemy.x, projectile.y - enemy.y);
         if (distProj - enemy.radius - projectile.radius < 1) {
@@ -167,7 +168,6 @@ const GamePage = ({ connectedAccount }) => {
               y: (Math.random() - 0.5) * (Math.random() * 8)
             }));
           }
-
           if (enemy.radius - 10 > 5) {
             setScore(s => s + 10);
             gsap.to(enemy, { radius: enemy.radius - 10 });
@@ -181,24 +181,21 @@ const GamePage = ({ connectedAccount }) => {
       });
     });
   }, []);
-
-  // --- EVENT SETUP ---
+  
   useEffect(() => {
     const canvas = canvasRef.current;
-    const c = canvas.getContext('2d');
+    canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     document.body.style.backgroundColor = 'black';
-
     const handleClick = (event) => {
       if (gameStateRef.current !== 'playing') return;
       const angle = Math.atan2(event.clientY - canvas.height / 2, event.clientX - canvas.width / 2);
-      const velocity = { x: Math.cos(angle) * 6, y: Math.sin(angle) * 6 };
+      const velocity = { x: Math.cos(angle) * 4, y: Math.sin(angle) * 4 };
       projectilesRef.current.push(
         new Projectile(canvas.width / 2, canvas.height / 2, 5, 'white', velocity)
       );
     };
-
     window.addEventListener('click', handleClick);
     return () => {
       window.removeEventListener('click', handleClick);
@@ -208,7 +205,6 @@ const GamePage = ({ connectedAccount }) => {
     };
   }, []);
 
-  // --- BUTTON HANDLERS ---
   const handleStartGame = () => {
     if (!connectedAccount) {
       const proceed = window.confirm("Your wallet is not connected. Your score will not be saved. Do you want to continue?");
@@ -233,23 +229,7 @@ const GamePage = ({ connectedAccount }) => {
 
   return (
     <>
-      <style>
-        {`
-          .btn-glow::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.25) 0%, transparent 50%);
-            opacity: 0;
-            transition: opacity 0.2s;
-          }
-          .btn-glow:hover::before { opacity: 1; }
-        `}
-      </style>
-
+      <style>{`.btn-glow::before { content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.25) 0%, transparent 50%); opacity: 0; transition: opacity 0.2s; } .btn-glow:hover::before { opacity: 1; }`}</style>
       <div className="select-none">
         <div className="fixed text-white text-xl ml-4 mt-2">
           <span>Score: </span>
@@ -257,19 +237,36 @@ const GamePage = ({ connectedAccount }) => {
         </div>
 
         {gameState === 'playing' && (
-          <button onClick={handlePauseGame} className="fixed top-0 right-0 m-2 p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer">
-            <PauseIcon />
-          </button>
+          <button onClick={handlePauseGame} className="fixed top-0 right-0 m-2 p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer"><PauseIcon /></button>
         )}
-
+        
         {(gameState === 'menu' || gameState === 'gameOver') && (
           <div className="fixed inset-0 flex items-center justify-center">
             <div className="w-full max-w-md p-8 text-center rounded-xl shadow-lg bg-white/10 backdrop-blur-lg border border-white/20 text-white">
-              <h1 className="text-6xl font-bold">
-                {gameState === 'gameOver' ? finalScore : score}
-              </h1>
-              <p className="text-sm text-white/80 mb-6">Points</p>
-              <div className="flex flex-col gap-3">
+              
+              {gameState === 'gameOver' && gameResult && (
+                <div className="animate-fade-in">
+                  <h2 className="text-2xl font-bold mb-2">Score Saved!</h2>
+                  <p className="text-lg">You scored <span className="font-bold text-pink-400">{finalScore}</span> points.</p>
+                  <div className="text-left bg-black/20 p-4 rounded-lg my-4 space-y-2">
+                      <p>New Accumulated Score: <span className="font-bold text-cyan-400">{gameResult.accumulatedScore}</span></p>
+                      <p>Highest Score: <span className="font-bold text-green-400">{gameResult.highestScore}</span></p>
+                  </div>
+                </div>
+              )}
+
+              {gameState === 'gameOver' && isSaving && (
+                <h1 className="text-4xl font-bold animate-pulse">Saving Score...</h1>
+              )}
+
+              {(gameState === 'menu' || (gameState === 'gameOver' && !isSaving && !gameResult)) && (
+                 <>
+                   <h1 className="text-6xl font-bold">{gameState === 'gameOver' ? finalScore : '0'}</h1>
+                   <p className="text-sm text-white/80 mb-6">Points</p>
+                 </>
+              )}
+
+              <div className="flex flex-col gap-3 mt-6">
                 <button onMouseMove={handleButtonGlow} onClick={handleStartGame} className={`${baseButtonClasses} bg-pink-500 text-white hover:bg-pink-600`}>
                   {gameState === 'gameOver' ? 'Play Again' : 'Start Game'}
                 </button>
@@ -286,12 +283,8 @@ const GamePage = ({ connectedAccount }) => {
             <div className="w-full max-w-md p-8 text-center rounded-xl shadow-lg bg-white/10 backdrop-blur-lg border border-white/20 text-white">
               <h1 className="text-4xl font-bold mb-6">Game Paused</h1>
               <div className="flex flex-col gap-3">
-                <button onMouseMove={handleButtonGlow} onClick={handleResumeGame} className={`${baseButtonClasses} bg-green-500 text-white hover:bg-green-600`}>
-                  Resume
-                </button>
-                <button onMouseMove={handleButtonGlow} onClick={handleStartGame} className={`${baseButtonClasses} bg-blue-500 text-white hover:bg-blue-600`}>
-                  Restart
-                </button>
+                <button onMouseMove={handleButtonGlow} onClick={handleResumeGame} className={`${baseButtonClasses} bg-green-500 text-white hover:bg-green-600`}>Resume</button>
+                <button onMouseMove={handleButtonGlow} onClick={handleStartGame} className={`${baseButtonClasses} bg-blue-500 text-white hover:bg-blue-600`}>Restart</button>
                 <Link to="/" onMouseMove={handleButtonGlow} className={`${baseButtonClasses} bg-gray-200 text-gray-800 hover:bg-gray-300`}>
                   Back to Home
                 </Link>
@@ -299,7 +292,6 @@ const GamePage = ({ connectedAccount }) => {
             </div>
           </div>
         )}
-
         <canvas ref={canvasRef}></canvas>
       </div>
     </>
