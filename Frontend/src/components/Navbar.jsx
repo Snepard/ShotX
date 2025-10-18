@@ -75,7 +75,7 @@ const Navbar = ({ account, handleConnect }) => {
                 <Wallet className={`${isScrolled ? 'w-4 h-4' : 'w-5 h-5'}`} />
                 <span>
                   {/* ✅ CORRECTED: Intelligently display user's name or address. */}
-                  {account ? (account.username || truncatedAddress) : "Connect Wallet"}
+                  {account ? (truncatedAddress || account.username) : "Connect Wallet"}
                 </span>
               </button>
 
@@ -100,7 +100,7 @@ const Navbar = ({ account, handleConnect }) => {
                     <Wallet className="w-5 h-5" />
                     <span>
                       {/* ✅ CORRECTED: Same fix for the mobile menu button. */}
-                      {account ? (account.username || truncatedAddress) : "Connect Wallet"}
+                      {account ? (truncatedAddress || account.username) : "Connect Wallet"}
                     </span>
                   </button>
                 </div>

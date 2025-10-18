@@ -1,24 +1,32 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import HomePage from "./pages/Homepage";
 import GamePage from "./pages/GamePage";
 import ProfilePage from "./pages/ProfilePage";
 import Marketplace from "./pages/Marketplace";
 import MainLayout from "./components/MainLayout";
-import { loginAndAuthenticate, verifyExistingLogin } from './services/blockchainService';
+import { 
+  loginAndAuthenticate, 
+  verifyExistingLogin, 
+  fetchUserProfile,
+  logoutUser 
+} from './services/blockchainService';
 
-function App() {
-  // State now holds the entire user data object, not just the address.
+const AppContent = () => {
   const [userData, setUserData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate(); 
 
-  // This hook checks for an existing session when the app loads.
   useEffect(() => {
     const checkAuthStatus = async () => {
-      // We will enhance this later to fetch full user data on session verification.
       const userAddress = await verifyExistingLogin();
       if (userAddress) {
-        // For now, we know a session exists. A full login will populate all data.
+        const profileData = await fetchUserProfile(userAddress);
+        if (profileData) {
+          setUserData(profileData);
+        }
       }
+      setIsLoading(false);
     };
     checkAuthStatus();
   }, []);
@@ -30,28 +38,48 @@ function App() {
     }
   };
   
-  const handleLogout = () => {
-    // In a full implementation, you would also call a backend endpoint to clear the session cookie.
-    setUserData(null);
+  const handleLogout = async () => {
+    const success = await logoutUser();
+    if (success) {
+      setUserData(null);
+      navigate('/'); 
+    }
   };
 
+  if (isLoading) {
+      return (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          backgroundColor: '#020617',
+          color: '#00FFFF',
+          fontFamily: 'monospace'
+        }}>
+          Initializing ShotX Interface...
+        </div>
+      );
+  }
+
+  return (
+    <Routes>
+      <Route element={<MainLayout account={userData} handleConnect={handleLogin} />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/Profile" element={<ProfilePage account={userData} handleLogout={handleLogout} />} />
+        <Route path="/Marketplace" element={<Marketplace />} />
+      </Route>
+      <Route path="/Game" element={<GamePage connectedAccount={userData?.walletAddress} />} />
+    </Routes>
+  );
+};
+
+function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Pass the `userData` object as the `account` prop, and the login handler. */}
-        <Route element={<MainLayout account={userData} handleConnect={handleLogin} />}>
-          <Route path="/" element={<HomePage />} />
-          {/* Ensure ProfilePage receives the full user data object. */}
-          <Route path="/Profile" element={<ProfilePage account={userData} />} />
-          <Route path="/Marketplace" element={<Marketplace />} />
-        </Route>
-
-        {/* GamePage receives the specific wallet address, safely accessed with optional chaining. */}
-        <Route path="/Game" element={<GamePage connectedAccount={userData?.walletAddress} />} />
-      </Routes>
+      <AppContent />
     </BrowserRouter>
   );
 }
 
 export default App;
-

@@ -25,6 +25,10 @@ import {
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Link, useOutletContext } from "react-router-dom";
+import {
+  fetchUserProfile,
+  convertScoreToCoins,
+} from "../services/blockchainService";
 
 /* ========== Styles ========== */
 const styles = `
@@ -793,42 +797,6 @@ const use3DHover = (ref, { maxRotate = 10, scale = 1.05 } = {}) => {
   }, [ref, maxRotate, scale]);
 };
 
-// --- (NEW) Backend Helper Functions ---
-const getPlayerData = async (walletAddress) => {
-  if (!walletAddress) return { accumulatedScore: 0, highestScore: 0 };
-  try {
-    const response = await fetch(
-      `http://localhost:3001/player-data/${walletAddress.toLowerCase()}`
-    );
-    if (!response.ok) throw new Error("Failed to fetch player data");
-    return await response.json();
-  } catch (error) {
-    console.error(error);
-    return { accumulatedScore: 0, highestScore: 0 };
-  }
-};
-
-const convertScoreToCoins = async (walletAddress) => {
-  if (!walletAddress) {
-    alert("Please connect your wallet first!");
-    return { success: false };
-  }
-  try {
-    const response = await fetch("http://localhost:3001/convert-score", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ walletAddress: walletAddress.toLowerCase() }),
-    });
-    const result = await response.json();
-    alert(result.message);
-    return response.ok;
-  } catch (error) {
-    console.error("Failed to convert score:", error);
-    alert("An error occurred during conversion.");
-    return { success: false };
-  }
-};
-
 // ================= BACKGROUND COMPONENT =================
 
 const SpaceBackground = () => {
@@ -1184,7 +1152,7 @@ const HowToViewCoins = () => {
               : "rgba(255,255,255,.1)",
             color: isCopied ? `rgba(var(--accent-cyan), 1)` : "white",
             minWidth: "95px",
-            cursor: "pointer", 
+            cursor: "pointer",
           }}
         >
           {isCopied ? <Check size={16} /> : <Copy size={16} />}
@@ -1274,14 +1242,14 @@ const BentoFeatures = () => {
 
     let ctx = gsap.context(() => {
       const cards = gsap.utils.toArray(".bento-card");
-        gsap.from(cards, {
+      gsap.from(cards, {
         scrollTrigger: {
           trigger: gridRef.current,
           start: "top 80%",
           toggleActions: "play none none none",
         },
         duration: 1.2, // Increased from 0.8s for a slower slide
-        autoAlpha: 0, 
+        autoAlpha: 0,
         x: (index) => (index % 2 === 0 ? -300 : 300),
         stagger: 0.15, // Increased from 0.1s for a more deliberate cascade
         ease: "power2.out",
@@ -1744,8 +1712,11 @@ export default function ShotXWebsite() {
 
   // This function will fetch data and be used to refresh it
   const refreshPlayerData = useCallback(() => {
-    if (account) {
-      getPlayerData(account).then((data) => setPlayerData(data));
+    if (account?.walletAddress) {
+      // Use the full user object
+      fetchUserProfile(account.walletAddress).then((data) => {
+        if (data) setPlayerData(data);
+      });
     }
   }, [account]);
 
@@ -1756,14 +1727,14 @@ export default function ShotXWebsite() {
 
   // Handler for the conversion button
   const handleConvert = async () => {
-    setIsConverting(true); // Disable the button immediately
+    setIsConverting(true);
     try {
-      const success = await convertScoreToCoins(account);
+      const success = await convertScoreToCoins(account.walletAddress);
       if (success) {
-        refreshPlayerData();
+        refreshPlayerData(); // Refresh data on success
       }
     } finally {
-      setIsConverting(false); // Re-enable the button when done
+      setIsConverting(false);
     }
   };
 

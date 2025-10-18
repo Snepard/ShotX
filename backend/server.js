@@ -40,7 +40,7 @@ const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractABI, 
 console.log(`✅ Backend server wallet address: ${wallet.address}`);
 
 // --- JWT Secret ---
-const JWT_SECRET = 'your-super-secret-key-for-shotx';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 
 // =================================================================
@@ -108,6 +108,16 @@ app.get('/auth/verify', (req, res) => {
   } catch (err) {
     res.status(401).json({ loggedIn: false });
   }
+});
+
+app.post('/auth/logout', (req, res) => {
+  console.log("LOG: Received request to log out.");
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+  });
+  res.status(200).json({ message: "Logged out successfully." });
 });
 
 // =================================================================

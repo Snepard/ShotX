@@ -4,9 +4,6 @@ import axios from 'axios';
 // The backend URL is now correctly pointed to port 5001.
 const API_URL = 'http://localhost:5001';
 
-/**
- * Verifies if a user has an existing valid session cookie.
- */
 export const verifyExistingLogin = async () => {
     try {
         // Use `withCredentials` to ensure cookies are sent with the request.
@@ -23,10 +20,6 @@ export const verifyExistingLogin = async () => {
     }
 };
 
-/**
- * Handles the full authentication flow: connect, sign, and log in.
- * @returns {object|null} The authenticated user's full data object or null on failure.
- */
 export const loginAndAuthenticate = async () => {
     try {
         console.log("1. Authentication process initiated.");
@@ -66,11 +59,17 @@ export const loginAndAuthenticate = async () => {
     }
 };
 
-/**
- * Fetches the complete user profile data from the backend.
- * @param {string} walletAddress The user's wallet address.
- * @returns {object|null} The user data object or null on failure.
- */
+export const logoutUser = async () => {
+    try {
+        await axios.post(`${API_URL}/auth/logout`, {}, { withCredentials: true });
+        console.log("✅ Logged out successfully from backend.");
+        return true;
+    } catch (error) {
+        console.error("❌ Logout failed:", error);
+        return false;
+    }
+};
+
 export const fetchUserProfile = async (walletAddress) => {
     if (!walletAddress) return null;
     try {
@@ -82,10 +81,20 @@ export const fetchUserProfile = async (walletAddress) => {
     }
 };
 
-/**
- * Calls the backend to convert the user's accumulated score into ShotX coins.
- * @param {string} walletAddress The user's wallet address.
- */
+export const updateUserProfile = async (walletAddress, formData) => {
+    try {
+        // The header is important for file uploads
+        const config = { headers: { 'Content-Type': 'multipart/form-data' }, withCredentials: true };
+        const response = await axios.put(`${API_URL}/api/user/${walletAddress}/profile`, formData, config);
+        alert('Profile updated successfully!');
+        return response.data;
+    } catch (error) {
+        console.error("❌ Failed to update user profile:", error);
+        alert(`Update failed: ${error.response?.data?.message || 'Server error'}`);
+        return null;
+    }
+};
+
 export const convertScoreToCoins = async (walletAddress) => {
     try {
         const response = await axios.post(`${API_URL}/api/score/convert`, { walletAddress });
