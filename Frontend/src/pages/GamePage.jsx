@@ -5,8 +5,36 @@ import { updateScore } from '../services/blockchainService';
 
 // --- GAME CLASSES ---
 class Player {
-  constructor(x, y, radius, color) { this.x = x; this.y = y; this.radius = radius; this.color = color; }
-  draw(c) { c.beginPath(); c.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); c.fillStyle = this.color; c.fill(); }
+  constructor(x, y, radius, color, image = null) {
+    this.x = x;
+    this.y = y;
+    this.radius = radius;
+    this.color = color;
+    this.image = image;
+  }
+
+  draw(c) {
+    if (this.image) {
+      c.save();
+      c.beginPath();
+      c.arc(this.x, this.y, this.radius, 0, Math.PI * 2, true);
+      c.closePath();
+      c.clip();
+      c.drawImage(
+        this.image,
+        this.x - this.radius,
+        this.y - this.radius,
+        this.radius * 2,
+        this.radius * 2
+      );
+      c.restore();
+    } else {
+      c.beginPath();
+      c.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+      c.fillStyle = this.color;
+      c.fill();
+    }
+  }
 }
 
 // --- MODIFICATION: Simplified Projectile class for motion blur trail ---
@@ -60,6 +88,7 @@ const GamePage = ({ connectedAccount }) => {
   const [finalScore, setFinalScore] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [gameResult, setGameResult] = useState(null);
+  const [playerSkinImage, setPlayerSkinImage] = useState(null);
 
   const canvasRef = useRef(null);
   const playerRef = useRef(null);
@@ -75,6 +104,14 @@ const GamePage = ({ connectedAccount }) => {
 
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
   useEffect(() => { scoreRef.current = score; }, [score]);
+  useEffect(() => {
+    const skinUrl = localStorage.getItem('selectedSkinUrl');
+    if (skinUrl) {
+      const img = new Image();
+      img.src = skinUrl;
+      img.onload = () => setPlayerSkinImage(img);
+    }
+  }, []);
 
   const handleGameOver = useCallback(async () => {
     if (isGameOverRef.current) return;
