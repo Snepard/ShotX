@@ -1497,22 +1497,17 @@ const Leaderboard = () => {
 };
 
 const HeroStatPods = () => {
+  const { account } = useOutletContext();
   const pods = [
     {
-      icon: TrendingUp,
-      value: "5,800,000",
-      label: "Enemies Blasted",
-      className: "stat-pod-1",
-    },
-    {
       icon: Coins,
-      value: "12,450,000",
+      value: account.shotxBalance || "0",
       label: "ShotX Coins Earned",
       className: "stat-pod-2",
     },
     {
       icon: Sparkles,
-      value: "1,500",
+      value: account.ownedNFTs.length || "0",
       label: "NFT Skins Minted",
       className: "stat-pod-3",
     },
