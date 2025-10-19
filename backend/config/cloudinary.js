@@ -1,33 +1,20 @@
 const cloudinary = require('cloudinary').v2;
 
-/**
- * Configures the Cloudinary SDK with credentials from environment variables.
- */
-const configureCloudinary = () => {
-    try {
-        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-        const apiKey = process.env.CLOUDINARY_API_KEY;
-        const apiSecret = process.env.CLOUDINARY_API_SECRET;
+// This is the crucial step that configures the SDK with your credentials.
+// It uses the environment variables you have already set up.
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true, // Ensures all URLs are served over HTTPS
+});
 
-        // A salient check to ensure environment variables are loaded
-        if (!cloudName || !apiKey || !apiSecret) {
-            console.warn("⚠️  Cloudinary environment variables are not fully set. File uploads will be disabled.");
-            return;
-        }
+// A quick check to confirm the configuration was successful upon server start.
+if (cloudinary.config().cloud_name) {
+    console.log('✅ Cloudinary configuration successful.');
+} else {
+    console.error('❌ Cloudinary configuration failed. Check your .env variables.');
+}
 
-        cloudinary.config({
-            cloud_name: cloudName,
-            api_key: apiKey,
-            api_secret: apiSecret,
-        });
-
-        console.log("✅ Cloudinary configuration successful.");
-
-    } catch (error) { // MODIFIED: Added the opening curly brace for the catch block
-        console.error("❌ Failed to configure Cloudinary:", error);
-    }
-};
-
-// Export the function directly as the module's main export.
-module.exports = configureCloudinary;
-
+// We export the configured object directly for use in other parts of the application.
+module.exports = cloudinary;

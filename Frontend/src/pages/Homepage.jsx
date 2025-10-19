@@ -1498,6 +1498,12 @@ const Leaderboard = () => {
 
 const HeroStatPods = () => {
   const { account } = useOutletContext();
+  if (!account) {
+        return (
+            <div className="grid md:grid-cols-3 gap-6 animate-pulse">
+            </div>
+        );
+    }
   const pods = [
     {
       icon: Coins,

@@ -5,21 +5,20 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
 const mongoose = require('mongoose');
-const { uploader } = require('cloudinary').v2;
 
 // --- Local Module Imports ---
 const { ethers } = require('ethers');
 const contractABI = require('./config/contractABI');
 const User = require('./models/User');
-// MODIFIED: This line is the critical fix. It imports the function directly.
-const configureCloudinary = require('./config/cloudinary');
+// MODIFIED: This now correctly imports the configured Cloudinary object.
+const cloudinary = require('./config/cloudinary');
 const configureMulter = require('./config/multer');
+const adminRoutes = require('./routes/admin');
 
 // --- INITIALIZATION ---
 const app = express();
 const PORT = process.env.PORT || 5001;
-// This line will now work correctly.
-configureCloudinary();
+// NOTE: The erroneous function call `configureCloudinary()` has been removed.
 
 // --- MIDDLEWARE ---
 app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
@@ -36,7 +35,7 @@ mongoose.connect(process.env.MONGO_URI)
 // --- BLOCKCHAIN SETUP ---
 const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
 const wallet = new ethers.Wallet(process.env.BACKEND_WALLET_PRIVATE_KEY, provider);
-const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractABI, wallet);
+const shotxCoinContract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractABI, wallet);
 console.log(`✅ Backend server wallet address: ${wallet.address}`);
 
 // --- JWT Secret ---
@@ -156,9 +155,11 @@ app.put('/api/user/:walletAddress/profile', upload.single('profilePic'), async (
 
         if (req.file) {
             if (user.profilePic && user.profilePic.public_id) {
-                await uploader.destroy(user.profilePic.public_id);
+                // MODIFIED: Uses the imported cloudinary object
+                await cloudinary.uploader.destroy(user.profilePic.public_id);
             }
-            const result = await uploader.upload(req.file.path, { folder: "shotx_profiles" });
+            // MODIFIED: Uses the imported cloudinary object
+            const result = await cloudinary.uploader.upload(req.file.path, { folder: "shotx_profiles" });
             user.profilePic = {
                 public_id: result.public_id,
                 url: result.secure_url,
@@ -184,7 +185,7 @@ app.post('/api/score/update', async (req, res) => {
             $inc: { accumulatedScore: newScore },
             $max: { highestScore: newScore }
         },
-        { new: true, upsert: false } // `new: true` returns the updated doc
+        { new: true, upsert: false }
     );
 
     if (!user) return res.status(404).json({ message: "User not found." });
@@ -216,7 +217,7 @@ app.post('/api/score/convert', async (req, res) => {
     const amountToMint = ethers.parseUnits(coinsToMint.toString(), 18);
     console.log(`Attempting to mint ${coinsToMint} SXC for ${lowerCaseAddress}`);
     
-    const tx = await contract.awardCoins(lowerCaseAddress, amountToMint);
+    const tx = await shotxCoinContract.awardCoins(lowerCaseAddress, amountToMint);
     await tx.wait();
     
     console.log(`Transaction confirmed! Minted ${coinsToMint} SXC.`);
@@ -233,9 +234,16 @@ app.post('/api/score/convert', async (req, res) => {
   }
 });
 
+// --- ADMIN ROUTES FOR NFT MINTING ---
+app.use('/api/admin', adminRoutes);
+
+// =================================================================
+// --- HELPER FUNCTIONS ---
+// =================================================================
+
 const getOnChainBalance = async (userAddress) => {
     try {
-        const balanceBigInt = await contract.balanceOf(userAddress);
+        const balanceBigInt = await shotxCoinContract.balanceOf(userAddress);
         return ethers.formatUnits(balanceBigInt, 18);
     } catch (error) {
         console.error(`Failed to fetch balance for ${userAddress}:`, error);
