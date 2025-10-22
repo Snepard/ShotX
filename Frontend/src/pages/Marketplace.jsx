@@ -1,10 +1,10 @@
 import React from 'react';
 import { useState, useRef, useEffect } from "react";
-import { motion, useInView } from "framer-motion";
-import { Coins } from "lucide-react"; // For the price icon
+import { motion } from "framer-motion";
+import { Coins } from "lucide-react"; // Kept from the first file for the UI
 
 // ================= BACKGROUND COMPONENT =================
-// This is the exact same background component from your other pages.
+// This component is identical in both files and remains unchanged.
 const SpaceBackground = () => {
   const canvasRef = useRef(null);
 
@@ -120,19 +120,8 @@ const SpaceBackground = () => {
   return <canvas ref={canvasRef} style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: -1, pointerEvents: "none" }} />;
 };
 
-// ================= MOCK DATA =================
-const mockMarketplaceNfts = [
-  { id: 1, name: "Cosmic Ranger", imageUrl: "/nfts/skin1.png", price: 1250 },
-  { id: 2, name: "Void Hunter", imageUrl: "/nfts/skin2.png", price: 1500 },
-  { id: 3, name: "Neon Samurai", imageUrl: "/nfts/skin3.png", price: 2000 },
-  { id: 4, name: "Solar Paladin", imageUrl: "/nfts/skin4.png", price: 1800 },
-  { id: 5, name: "Galactic Glider", imageUrl: "/nfts/skin5.png", price: 1350 },
-  { id: 6, name: "Cyber Ronin", imageUrl: "/nfts/skin6.png", price: 2500 },
-  { id: 7, name: "Starfire Sentinel", imageUrl: "/nfts/skin7.png", price: 2200 },
-  { id: 8, name: "Nebula Nomad", imageUrl: "/nfts/skin8.png", price: 1650 },
-];
-
 // ================= UI COMPONENTS =================
+// Merged NftPurchaseCard: UI from the first file, robustness from the second.
 const NftPurchaseCard = ({ nft }) => (
   <motion.div
     className="card-container"
@@ -141,13 +130,23 @@ const NftPurchaseCard = ({ nft }) => (
     transition={{ duration: 0.5 }}
   >
     <div className="card bg-slate-800/60 backdrop-blur-sm rounded-xl p-4 border border-cyan-500/30 flex flex-col items-center justify-between gap-4 h-full">
-      <img src={nft.imageUrl} alt={nft.name} className="w-full h-40 object-contain rounded-md" />
+      <img 
+        src={nft.imageUrl} 
+        alt={nft.name} 
+        className="w-full h-40 object-contain rounded-md" 
+        // Logic from second file: Added fallback image for robustness
+        onError={(e) => (e.currentTarget.src = "https://placehold.co/400x300/020617/00FFFF?text=SHOTX")}
+      />
       <div className="text-center w-full">
         <h3 className="font-bold text-white truncate font-orbitron">{nft.name}</h3>
       </div>
       <div className="flex items-center justify-center gap-2 text-cyan-300 w-full bg-slate-900/50 py-2 rounded-md">
+        {/* UI from first file: Kept the Coins icon */}
         <Coins size={18} />
-        <span className="font-bold font-orbitron text-lg">{nft.price.toLocaleString()}</span>
+        <span className="font-bold font-orbitron text-lg">
+          {/* Logic from second file: Added conditional price check */}
+          {nft.price ? nft.price.toLocaleString() : "---"} SXC
+        </span>
       </div>
       <motion.button 
         className="w-full bg-cyan-600 text-slate-900 font-bold py-2 rounded-lg"
@@ -162,14 +161,39 @@ const NftPurchaseCard = ({ nft }) => (
 
 // ================= MAIN MARKETPLACE PAGE COMPONENT =================
 export default function MarketplacePage() {
-  const [nfts] = useState(mockMarketplaceNfts); 
+  // Logic from second file: State for handling dynamic data, loading, and errors.
+  const [nfts, setNfts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Logic from second file: useEffect to fetch data from the backend.
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const response = await fetch("http://localhost:5001/api/items");
+        if (!response.ok) {
+          throw new Error("Network response was not satisfactory.");
+        }
+        const data = await response.json();
+        setNfts(data);
+      } catch (err) {
+        setError(err.message);
+        console.error("Error fetching marketplace items:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchItems();
+  }, []); // Empty dependency array ensures this runs only once on mount.
+
+  // UI from first file: Styles and animation variants are preserved.
   const pageStyles = `
     .card-container { perspective: 1000px; }
     .card { transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); transform-style: preserve-3d; }
     .card-container:hover .card { 
-        transform: rotateX(10deg) rotateY(-8deg) scale(1.1); 
-        box-shadow: 0px 25px 40px -15px rgba(0, 255, 255, 0.3);
+      transform: rotateX(10deg) rotateY(-8deg) scale(1.1); 
+      box-shadow: 0px 25px 40px -15px rgba(0, 255, 255, 0.3);
     }
     .font-orbitron { font-family: 'Orbitron', monospace; }
     .text-glow { text-shadow: 0 0 8px rgba(0, 255, 255, 0.5); }
@@ -184,6 +208,40 @@ export default function MarketplacePage() {
     visible: { y: 0, opacity: 1, transition: { duration: 0.5 } }
   };
 
+  // Logic from second file: Helper function to render content based on the current state.
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <p className="text-center text-xl text-cyan-300 animate-pulse">
+          Loading cosmic assets...
+        </p>
+      );
+    }
+    if (error) {
+      return (
+        <p className="text-center text-xl text-red-400">
+          Error: Could not load marketplace. {error}
+        </p>
+      );
+    }
+    if (nfts.length === 0) {
+      return (
+        <p className="text-center text-xl text-cyan-200/70">
+          The marketplace is currently empty. New items are being forged!
+        </p>
+      );
+    }
+    return (
+      <motion.div 
+        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
+        variants={containerVariants}
+      >
+        {/* Uses a more robust key for items from a database */}
+        {nfts.map((nft) => <NftPurchaseCard key={nft.tokenId || nft._id} nft={nft} />)}
+      </motion.div>
+    );
+  };
+
   return (
     <div className="relative min-h-screen text-white font-sans">
       <style>{pageStyles}</style>
@@ -196,19 +254,14 @@ export default function MarketplacePage() {
             initial="hidden"
             animate="visible"
         >
-            {/* Page Header */}
-            <motion.div className="text-center mb-12" variants={itemVariants}>
-                <h1 className="text-5xl font-bold font-orbitron text-white text-glow">Marketplace</h1>
-                <p className="text-cyan-200/70 mt-2">Acquire exclusive player skins with your ShotX coins.</p>
-            </motion.div>
+          {/* Page Header from first file's UI */}
+          <motion.div className="text-center mb-12" variants={itemVariants}>
+            <h1 className="text-5xl font-bold font-orbitron text-white text-glow">Marketplace</h1>
+            <p className="text-cyan-200/70 mt-2">Acquire exclusive player skins with your ShotX coins.</p>
+          </motion.div>
 
-            {/* NFT Grid */}
-            <motion.div 
-                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
-                variants={containerVariants}
-            >
-                {nfts.map((nft) => <NftPurchaseCard key={nft.id} nft={nft} />)}
-            </motion.div>
+          {/* NFT Grid is now rendered using the logic from the second file */}
+          {renderContent()}
         </motion.div>
       </main>
     </div>

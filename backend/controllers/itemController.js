@@ -17,6 +17,18 @@ const provider = new JsonRpcProvider(SEPOLIA_RPC_URL);
 const wallet = new Wallet(ADMIN_PRIVATE_KEY, provider);
 const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, wallet);
 
+// Controller to get all nft from the database
+exports.getAllItems = async (req, res) => {
+    try {
+        // Fetches all documents from the 'items' collection
+        const items = await Item.find({});
+        res.status(200).json(items);
+    } catch (error) {
+        console.error("Failed to fetch items:", error);
+        res.status(500).json({ message: "Error retrieving items from the database." });
+    }
+};
+
 // Helper function to upload buffer to Cloudinary
 const uploadToCloudinary = (buffer) => {
     return new Promise((resolve, reject) => {
@@ -33,11 +45,11 @@ const uploadToCloudinary = (buffer) => {
 
 exports.mintItem = async (req, res) => {
     try {
-        const { name, description, supply } = req.body;
+        const { name, description, supply, price } = req.body;
         const imageFile = req.file;
 
-        if (!name || !supply || !imageFile) {
-            return res.status(400).json({ message: "Name, supply, and image are required." });
+        if (!name || !supply || !imageFile || !price) {
+            return res.status(400).json({ message: "Name, supply, image, and price are required." });
         }
 
         // 1. Upload Image to Cloudinary
@@ -89,6 +101,7 @@ exports.mintItem = async (req, res) => {
             imageUrl: cloudinaryResult.secure_url,
             metadataUrl,
             isUnique,
+            price: parseInt(price),
             currentOwnerAddress: isUnique ? wallet.address : null
         });
         await newItem.save();
@@ -101,3 +114,12 @@ exports.mintItem = async (req, res) => {
     }
 };
 
+exports.getAllItems = async (req, res) => {
+    try {
+        const items = await Item.find({});
+        res.status(200).json(items);
+    } catch (error) {
+        console.error("Failed to fetch items:", error);
+        res.status(500).json({ message: "Error retrieving items from the database." });
+    }
+};

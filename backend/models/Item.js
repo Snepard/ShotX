@@ -31,7 +31,8 @@ const itemSchema = new mongoose.Schema({
         type: String,
         lowercase: true,
         trim: true
-    }
+    },
+    price: { type: Number, required: true, default: 0 }
 }, { timestamps: true });
 
 const Item = mongoose.model('Item', itemSchema);

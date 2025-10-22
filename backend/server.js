@@ -14,6 +14,7 @@ const User = require('./models/User');
 const cloudinary = require('./config/cloudinary');
 const configureMulter = require('./config/multer');
 const adminRoutes = require('./routes/admin');
+const publicRoutes = require('./routes/public');
 
 // --- INITIALIZATION ---
 const app = express();
@@ -25,6 +26,8 @@ app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use('/api/admin', adminRoutes);
+app.use('/api', publicRoutes);
 
 // --- DATABASE CONNECTION ---
 console.log("Attempting to connect to MongoDB...");
@@ -233,9 +236,6 @@ app.post('/api/score/convert', async (req, res) => {
     res.status(500).json({ message: "Failed to mint coins due to a network error." });
   }
 });
-
-// --- ADMIN ROUTES FOR NFT MINTING ---
-app.use('/api/admin', adminRoutes);
 
 // =================================================================
 // --- HELPER FUNCTIONS ---
