@@ -1,1 +1,35 @@
 @import "tailwindcss";
+
+/* Base styles for the purchase button */
+.purchase-button {
+  transition: all 0.2s ease-in-out;
+}
+
+/* State: Needs approval */
+.purchase-button.approve {
+  background-color: #facc15; /* yellow-400 */
+}
+.purchase-button.approve:hover:not(:disabled) {
+  background-color: #fde047; /* yellow-300 */
+}
+
+/* State: Ready to buy */
+.purchase-button.buy {
+  background-color: #06b6d4; /* cyan-600 */
+}
+.purchase-button.buy:hover:not(:disabled) {
+  background-color: #22d3ee; /* cyan-500 */
+}
+
+/* State: Already owned */
+.purchase-button.owned {
+  background-color: #4b5563; /* gray-600 */
+  color: #9ca3af; /* gray-400 */
+  cursor: not-allowed;
+}
+
+/* State: Loading or disabled */
+.purchase-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
