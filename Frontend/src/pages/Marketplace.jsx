@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Coins } from "lucide-react";
 import axios from 'axios';
 // Import the blockchain service functions we will use
-import { checkAllowance, approvePurchase, buyItem, checkNftBalance } from '../services/BlockchainService';
+import { checkAllowance, approvePurchase, buyItem, checkNftBalance } from '../services/blockchainService';
 
 // ================= BACKGROUND COMPONENT =================
 // This component remains unchanged.
