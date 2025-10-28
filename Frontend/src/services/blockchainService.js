@@ -235,4 +235,4 @@ export const checkNftBalance = async (tokenId) => {
         console.error(`❌ Error checking NFT balance for token ${tokenId}:`, error);
         return 0;
     }
-};
+};  
