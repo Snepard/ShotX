@@ -3,7 +3,7 @@ const hre = require("hardhat");
 async function main() {
   // --- REPLACE WITH YOUR VALUES ---
   const contractAddress = "0xe256884B1eBC08d4130B543d91001437B1FD5e1F"; // The address of your deployed ShotXCoin contract
-  const newOwnerAddress = "0xd5e6ED22B22FaF6ae0454b440071DAAe7885E398"; // The address of your backend server wallet (0xd5e...)
+  const newOwnerAddress = "0x5015689ED3d89B65164Ef832Fa1E4D2C58cf7d73"; // The address of your backend server wallet (0xd5e...)
   // -----------------------------
 
   console.log(`Fetching contract at address: ${contractAddress}`);
