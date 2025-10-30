@@ -1353,61 +1353,84 @@ const BentoFeatures = () => {
   );
 };
 
-const Leaderboard = () => {
-  const leaderboardData = [
-    {
-      rank: 1,
-      name: "CyberNinja",
-      score: 289950,
-      nftsOwned: 12,
-      avatar: "https://i.pravatar.cc/100?u=CyberNinja",
-    },
-    {
-      rank: 2,
-      name: "GlitchMaverick",
-      score: 275100,
-      nftsOwned: 8,
-      avatar: "https://i.pravatar.cc/100?u=GlitchMaverick",
-    },
-    {
-      rank: 3,
-      name: "PixelProwler",
-      score: 268800,
-      nftsOwned: 15,
-      avatar: "https://i.pravatar.cc/100?u=PixelProwler",
-    },
-    {
-      rank: 4,
-      name: "VoidRunner",
-      score: 250450,
-      nftsOwned: 5,
-      avatar: "https://i.pravatar.cc/40?u=VoidRunner",
-    },
-    {
-      rank: 5,
-      name: "Wade Warren",
-      score: 241900,
-      nftsOwned: 9,
-      avatar: "https://i.pravatar.cc/40?u=WadeWarren",
-    },
-    {
-      rank: 6,
-      name: "Esther Howard",
-      score: 225300,
-      nftsOwned: 11,
-      avatar: "https://i.pravatar.cc/40?u=EstherHoward",
-    },
-    {
-      rank: 7,
-      name: "Robert Fox",
-      score: 210600,
-      nftsOwned: 7,
-      avatar: "https://i.pravatar.cc/40?u=RobertFox",
-    },
+const Leaderboard = ({ account }) => {
+  const [players, setPlayers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const maskAddress = (addr) =>
+    addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "Unknown";
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        // 1) Discover wallet addresses to score from DB via items owners + current account
+        const res = await fetch("http://localhost:5001/api/items", {
+          credentials: "include",
+        });
+        const items = res.ok ? await res.json() : [];
+        const ownerSet = new Set();
+        for (const it of Array.isArray(items) ? items : []) {
+          if (it?.currentOwnerAddress) ownerSet.add(String(it.currentOwnerAddress).toLowerCase());
+        }
+        if (account?.walletAddress) ownerSet.add(account.walletAddress.toLowerCase());
+
+        // Limit to avoid excessive requests
+        const addresses = Array.from(ownerSet).slice(0, 30);
+        if (addresses.length === 0) {
+          setPlayers([]);
+          return;
+        }
+
+        // 2) Fetch each user's profile from DB and collect their highestScore
+        const fetched = await Promise.all(
+          addresses.map(async (addr) => {
+            try {
+              const r = await fetch(`http://localhost:5001/api/user/${addr}`);
+              if (!r.ok) return null; // skip users not in DB yet
+              const u = await r.json();
+              return {
+                wallet: addr,
+                name: u?.username || maskAddress(addr),
+                score: Number(u?.highestScore || 0),
+                nftsOwned: Array.isArray(u?.ownedNFTs) ? u.ownedNFTs.length : 0,
+                avatar:
+                  u?.profilePic?.url || `https://i.pravatar.cc/100?u=${encodeURIComponent(addr)}`,
+              };
+            } catch (_) {
+              return null;
+            }
+          })
+        );
+
+        if (cancelled) return;
+
+        const valid = fetched.filter(Boolean).sort((a, b) => b.score - a.score);
+        // Assign ranks
+        const ranked = valid.map((p, idx) => ({ ...p, rank: idx + 1 }));
+        setPlayers(ranked);
+      } catch (e) {
+        console.warn("Failed to load leaderboard:", e?.message || e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [account]);
+
+  // Fallback placeholder if nothing to show
+  const fallback = [
+    { rank: 1, name: "Player One", score: 0, nftsOwned: 0, avatar: "https://i.pravatar.cc/100?u=1" },
+    { rank: 2, name: "Player Two", score: 0, nftsOwned: 0, avatar: "https://i.pravatar.cc/100?u=2" },
+    { rank: 3, name: "Player Three", score: 0, nftsOwned: 0, avatar: "https://i.pravatar.cc/100?u=3" },
   ];
 
-  const top3 = leaderboardData.slice(0, 3);
-  const rest = leaderboardData.slice(3);
+  const data = players.length ? players : fallback;
+  const top3 = data.slice(0, 3);
+  const rest = data.slice(3);
 
   return (
     <section id="leaderboard" className="leaderboard-section">
@@ -1457,7 +1480,7 @@ const Leaderboard = () => {
                   color: `rgba(var(--accent-cyan),1)`,
                 }}
               >
-                {player.score.toLocaleString()}
+                {Number(player.score || 0).toLocaleString()}
               </p>
               <span style={{ fontSize: "0.8rem", color: "#A0AEC0" }}>
                 {player.nftsOwned} NFTs
@@ -1466,31 +1489,33 @@ const Leaderboard = () => {
           ))}
         </AnimatedOnScroll>
 
-        <div className="leaderboard-list">
-          {rest.map((player, index) => (
-            <AnimatedOnScroll
-              key={player.rank}
-              animation="fade-in-up"
-              delay={index * 50}
-            >
-              <div className="leaderboard-row">
-                <div className="rank">#{player.rank}</div>
-                <div className="player-info">
-                  <img src={player.avatar} alt={player.name} />
-                  <span>{player.name}</span>
+        {rest.length > 0 && (
+          <div className="leaderboard-list">
+            {rest.map((player, index) => (
+              <AnimatedOnScroll
+                key={player.rank}
+                animation="fade-in-up"
+                delay={index * 50}
+              >
+                <div className="leaderboard-row">
+                  <div className="rank">#{player.rank}</div>
+                  <div className="player-info">
+                    <img src={player.avatar} alt={player.name} />
+                    <span>{player.name}</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-label">High Score</span>
+                    {Number(player.score || 0).toLocaleString()}
+                  </div>
+                  <div className="stat">
+                    <span className="stat-label">NFTs Owned</span>
+                    {player.nftsOwned}
+                  </div>
                 </div>
-                <div className="stat">
-                  <span className="stat-label">High Score</span>
-                  {player.score.toLocaleString()}
-                </div>
-                <div className="stat">
-                  <span className="stat-label">NFTs Owned</span>
-                  {player.nftsOwned}
-                </div>
-              </div>
-            </AnimatedOnScroll>
-          ))}
-        </div>
+              </AnimatedOnScroll>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -1739,7 +1764,8 @@ export default function ShotXWebsite() {
     }
   };
 
-  const featuredNFTs = [
+  // Featured NFTs pulled from DB (fallbacks keep the UI looking the same while loading)
+  const [featuredNFTs, setFeaturedNFTs] = useState([
     {
       name: "Crimson Spectre Skin",
       rarity: "Legendary",
@@ -1758,7 +1784,50 @@ export default function ShotXWebsite() {
       price: "2500 SXC",
       img: "https://images.unsplash.com/photo-1481349518771-20055b2a7b24?q=80&w=1539&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     },
-  ];
+  ]);
+
+  // Helper to compute a rarity label to keep the cards looking the same
+  const computeRarity = (item) => {
+    // Prefer uniqueness/price to infer rarity; fall back to a deterministic pick
+    if (item?.isUnique) return "Mythic";
+    const priceNum = Number(item?.price || 0);
+    if (priceNum >= 10000) return "Legendary";
+    if (priceNum >= 5000) return "Epic";
+    return ["Rare", "Epic", "Legendary"][item.tokenId % 3] || "Rare";
+  };
+
+  // Fetch 3 random items from the backend and shape them for NFTCard
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const res = await fetch("http://localhost:5001/api/items", {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to fetch items");
+        const items = await res.json();
+        if (!Array.isArray(items) || items.length === 0) return; // Keep fallbacks
+
+        // Shuffle and take 3
+        const shuffled = items
+          .map((it) => ({ it, sort: Math.random() }))
+          .sort((a, b) => a.sort - b.sort)
+          .slice(0, 3)
+          .map(({ it }) => it);
+
+        const shaped = shuffled.map((it) => ({
+          name: it.name || `Item #${it.tokenId}`,
+          rarity: computeRarity(it),
+          price: `${Number(it.price || 0)} SXC`,
+          img: it.imageUrl,
+        }));
+
+        setFeaturedNFTs(shaped);
+      } catch (e) {
+        console.warn("Could not load featured NFTs from API:", e?.message || e);
+      }
+    };
+    fetchFeatured();
+  }, []);
 
   return (
     <>
@@ -1878,9 +1947,10 @@ export default function ShotXWebsite() {
               </AnimatedOnScroll>
               <div
                 style={{
-                  display: "grid",
+                  display: "flex",
                   gap: 40,
-                  gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                  flexWrap: "wrap",
+                  justifyContent: "center",
                 }}
               >
                 {featuredNFTs.map((nft, index) => (
@@ -1888,14 +1958,25 @@ export default function ShotXWebsite() {
                     key={nft.name}
                     animation="fade-in-right"
                     delay={index * 150}
+                    style={{ width: 300, margin: "0 auto" }}
                   >
-                    <NFTCard {...nft} />
+                    <Link
+                      to="/Marketplace"
+                      style={{
+                        textDecoration: "none",
+                        color: "inherit",
+                        display: "block",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <NFTCard {...nft} />
+                    </Link>
                   </AnimatedOnScroll>
                 ))}
               </div>
             </section>
 
-            <Leaderboard />
+            <Leaderboard account={account} />
 
             <BentoFeatures />
           </main>
