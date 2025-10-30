@@ -3,7 +3,16 @@ import { motion } from "framer-motion";
 import { Coins } from "lucide-react";
 import axios from 'axios';
 // Import the blockchain service functions we will use
-import { checkAllowance, approvePurchase, buyItem, checkNftBalance, getOwnedNFTs, getShotXBalance, updateUserProfile } from '../services/blockchainService';
+import { 
+  checkAllowance, 
+  approvePurchase, 
+  buyItem, 
+  getOwnedNFTs, 
+  getShotXBalance, 
+  updateUserProfile,
+  verifyExistingLogin,
+  fetchUserProfile
+} from '../services/blockchainService';
 
 // ================= BACKGROUND COMPONENT =================
 // This component remains unchanged.
@@ -124,7 +133,7 @@ const SpaceBackground = () => {
 
 // ================= UI COMPONENTS =================
 // The Purchase Button logic is now integrated directly into this card component.
-const NftPurchaseCard = ({ nft }) => {
+const NftPurchaseCard = ({ nft, ownedIds = [] }) => {
   // NEW: State management for the purchase flow
   const [buttonState, setButtonState] = useState('loading'); // loading, approve, buy, owned
   const [isLoading, setIsLoading] = useState(false);
@@ -134,19 +143,25 @@ const NftPurchaseCard = ({ nft }) => {
     if (!nft) return;
     setButtonState('loading');
     
-    // 1. Check if the user already owns this NFT
-    const balance = await checkNftBalance(nft.tokenId);
-    if (balance > 0) {
-      setButtonState('owned');
-      return;
+    // 1. Check ownership from MongoDB-owned array (authoritative source for UI)
+    try {
+      const nftIdStr = String(nft._id || '');
+      if (nftIdStr && Array.isArray(ownedIds) && ownedIds.map(String).includes(nftIdStr)) {
+        console.log(`NFT ${nft.name} (${nftIdStr}) is owned by user`);
+        setButtonState('owned');
+        return;
+      }
+    } catch (e) {
+      // Non-fatal; fall through to allowance/buy path
+      console.warn('Ownership check via MongoDB failed, proceeding:', e?.message || e);
     }
 
     // 2. Check if the marketplace has allowance
     const hasAllowance = await checkAllowance(nft.price);
     setButtonState(hasAllowance ? 'buy' : 'approve');
-  }, [nft]);
+  }, [nft, ownedIds]);
 
-  // NEW: Run the check when the component loads
+  // NEW: Run the check when the component loads OR when ownedIds changes
   useEffect(() => {
     checkUserStatus();
   }, [checkUserStatus]);
@@ -236,11 +251,18 @@ const NftPurchaseCard = ({ nft }) => {
 
         {/* This button is now dynamic and fully functional */}
         <motion.button 
-          className={`w-full text-slate-900 font-bold py-2 rounded-lg purchase-button ${buttonState}`} // Dynamic classes for styling
+          className={`w-full text-slate-900 font-bold py-2 rounded-lg purchase-button ${buttonState}`}
           whileHover={{ scale: 1.05, filter: "brightness(1.2)", boxShadow: "0 0 20px #00FFFF" }}
           whileTap={{ scale: 0.95 }}
           onClick={handlePurchaseClick}
           disabled={isLoading || buttonState === 'loading' || buttonState === 'owned'}
+          style={{
+            cursor: buttonState === 'owned' 
+              ? 'not-allowed' 
+              : (isLoading || buttonState === 'loading') 
+                ? 'progress' 
+                : 'pointer'
+          }}
         >
           {isLoading ? 'Processing...' : getButtonText()}
         </motion.button>
@@ -256,36 +278,82 @@ export default function MarketplacePage() {
   const [nfts, setNfts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+   const [ownedIds, setOwnedIds] = useState([]); // Array of Item ObjectId strings from MongoDB
 
   useEffect(() => {
-    const fetchItems = async () => {
+    const fetchData = async () => {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
-      try {
-        const response = await axios.get(`${API_URL}/api/items`);
-        setNfts(response.data);
-      } catch (err) {
-        setError(err.message);
-        console.error("Error fetching marketplace items:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+		  try {
+			 const [itemsResp] = await Promise.all([
+            axios.get(`${API_URL}/api/items`)
+        ]);
+        setNfts(itemsResp.data || []);
 
-    fetchItems();
+        // Attempt to resolve current user's owned NFTs from MongoDB
+        try {
+          let address = await verifyExistingLogin();
+          // Fallback: try to read connected signer without forcing a popup
+          if (!address && window.ethereum) {
+            try {
+              const { ethers } = await import('ethers');
+              const provider = new ethers.BrowserProvider(window.ethereum);
+              const signer = await provider.getSigner();
+              address = await signer.getAddress();
+            } catch (_) { /* ignore */ }
+          }
+          if (address) {
+            const profile = await fetchUserProfile(address);
+            const ids = (profile?.ownedNFTs || []).map((id) => String(id));
+            setOwnedIds(ids);
+          } else {
+            setOwnedIds([]);
+          }
+        } catch (userErr) {
+          console.warn('Failed to load user ownership info:', userErr?.message || userErr);
+          setOwnedIds([]);
+        }
+
+		  } catch (err) {
+			 setError(err.message);
+			 console.error("Error fetching marketplace items:", err);
+		  } finally {
+			 setIsLoading(false);
+		  }
+		 };
+
+		 fetchData();
   }, []);
 
-  const pageStyles = `
-    .card-container { perspective: 1000px; }
-    .card { transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); transform-style: preserve-3d; }
-    .card-container:hover .card { 
-      transform: rotateX(10deg) rotateY(-8deg) scale(1.1); 
-      box-shadow: 0px 25px 40px -15px rgba(0, 255, 255, 0.3);
-    }
-    .font-orbitron { font-family: 'Orbitron', monospace; }
-    .text-glow { text-shadow: 0 0 8px rgba(0, 255, 255, 0.5); }
-  `;
-
-  const containerVariants = {
+  const pageStyles = `
+    .card-container { perspective: 1000px; }
+    .card { transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); transform-style: preserve-3d; }
+    .card-container:hover .card { 
+      transform: rotateX(10deg) rotateY(-8deg) scale(1.1); 
+      box-shadow: 0px 25px 40px -15px rgba(0, 255, 255, 0.3);
+    }
+    .font-orbitron { font-family: 'Orbitron', monospace; }
+    .text-glow { text-shadow: 0 0 8px rgba(0, 255, 255, 0.5); }
+    
+    /* Purchase button states */
+    .purchase-button {
+      background: linear-gradient(to bottom, #00FFFF, #00CED1);
+      transition: all 0.3s ease;
+    }
+    .purchase-button.loading {
+      background: linear-gradient(to bottom, #64748b, #475569);
+      opacity: 0.7;
+    }
+    .purchase-button.approve {
+      background: linear-gradient(to bottom, #FFA500, #FF8C00);
+    }
+    .purchase-button.buy {
+      background: linear-gradient(to bottom, #00FF00, #00CC00);
+    }
+    .purchase-button.owned {
+      background: linear-gradient(to bottom, #6B7280, #4B5563);
+      opacity: 0.6;
+    }
+  `;  const containerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } }
   };
@@ -309,7 +377,7 @@ export default function MarketplacePage() {
         className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
         variants={containerVariants}
       >
-        {nfts.map((nft) => <NftPurchaseCard key={nft.tokenId || nft._id} nft={nft} />)}
+     {nfts.map((nft) => <NftPurchaseCard key={nft.tokenId || nft._id} nft={nft} ownedIds={ownedIds} />)}
       </motion.div>
     );
   };

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom"; // Import the Link component
-import { Pencil, LogOut, Trophy, Wallet, Check, X } from "lucide-react";
+import { Pencil, LogOut, Trophy, Wallet, Check, X, Coins } from "lucide-react";
 import { motion, useInView } from "framer-motion";
 import axios from 'axios';
 import { updateUserProfile } from '../services/blockchainService';
@@ -182,26 +182,31 @@ const StatBox = ({ title, value, icon, isCurrency }) => (
 );
 
 const NftCard = ({ nft }) => (
-  <motion.div
-    className="card-container"
-    initial={{ opacity: 0, y: 30 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5 }}
-  >
-    <div className="card bg-slate-800/60 backdrop-blur-sm rounded-xl p-4 border border-cyan-500/30 flex flex-col items-center justify-between gap-4 h-full">
-      <img src={nft.imageUrl} alt={nft.name} className="w-full h-40 object-contain rounded-md" />
-      <motion.button 
-        className="w-full bg-cyan-600 text-slate-900 font-bold truncate font-orbitron py-2 rounded-lg"
-        whileHover={{ scale: 1.05, backgroundColor: "#00FFFF", boxShadow: "0 0 20px #00FFFF" }}
-        whileTap={{ scale: 0.95 }}
-      >
-        {nft.name}
-      </motion.button>
-    </div>
-  </motion.div>
+  <motion.div
+    className="card-container"
+    initial={{ opacity: 0, y: 30 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+  >
+    <div className="card bg-slate-800/60 backdrop-blur-sm rounded-xl p-4 border border-cyan-500/30 flex flex-col items-center justify-between gap-4 h-full">
+      <img 
+        src={nft.imageUrl} 
+        alt={nft.name} 
+        className="w-full h-40 object-contain rounded-md" 
+        onError={(e) => (e.currentTarget.src = "https://placehold.co/400x300/020617/00FFFF?text=SHOTX")}
+      />
+      <div className="text-center w-full">
+        <h3 className="font-bold text-white truncate font-orbitron">{nft.name}</h3>
+      </div>
+      <div className="flex items-center justify-center gap-2 text-cyan-300 w-full bg-slate-900/50 py-2 rounded-md">
+        <Coins size={18} />
+        <span className="font-bold font-orbitron text-lg">
+          {nft.price ? nft.price.toLocaleString() : "---"} SXC
+        </span>
+      </div>
+    </div>
+  </motion.div>
 );
-
-
 // ================= MAIN PROFILE PAGE COMPONENT =================
 export default function ProfilePage({ account, handleLogout }) {
   // --- STATE MANAGEMENT ---
@@ -313,18 +318,23 @@ export default function ProfilePage({ account, handleLogout }) {
   // Build UI list from marketplace items matching owned Item ObjectIds
   const nfts = displayNfts; 
 
-  const pageStyles = `
-    .card-container { perspective: 1000px; }
-    .card { transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); transform-style: preserve-3d; }
-    .card-container:hover .card { 
-        transform: rotateX(10deg) rotateY(-8deg) scale(1.1); 
-        box-shadow: 0px 25px 40px -15px rgba(0, 255, 255, 0.3);
-    }
-    .font-orbitron { font-family: 'Orbitron', monospace; }
-    .text-glow { text-shadow: 0 0 8px rgba(0, 255, 255, 0.5); }
-  `;
-
-  const containerVariants = {
+  const pageStyles = `
+    .card-container { perspective: 1000px; }
+    .card { transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); transform-style: preserve-3d; }
+    .card-container:hover .card { 
+        transform: rotateX(10deg) rotateY(-8deg) scale(1.1); 
+        box-shadow: 0px 25px 40px -15px rgba(0, 255, 255, 0.3);
+    }
+    .font-orbitron { font-family: 'Orbitron', monospace; }
+    .text-glow { text-shadow: 0 0 8px rgba(0, 255, 255, 0.5); }
+    
+    /* Owned NFT button styling */
+    .owned-nft-button {
+      background: linear-gradient(to bottom, #6B7280, #4B5563);
+      opacity: 0.8;
+      transition: all 0.3s ease;
+    }
+  `;  const containerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.15, delayChildren: 0.2 } }
   };
