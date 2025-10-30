@@ -9,7 +9,9 @@ const mongoose = require('mongoose');
 // --- Local Module Imports ---
 const { ethers } = require('ethers');
 const contractABI = require('./config/contractABI');
+const nftContractABI = require('./config/nftContractAbi');
 const User = require('./models/User');
+const Item = require('./models/Item');
 // MODIFIED: This now correctly imports the configured Cloudinary object.
 const cloudinary = require('./config/cloudinary');
 const configureMulter = require('./config/multer');
@@ -39,6 +41,8 @@ mongoose.connect(process.env.MONGO_URI)
 const provider = new ethers.JsonRpcProvider(process.env.SEPOLIA_RPC_URL);
 const wallet = new ethers.Wallet(process.env.BACKEND_WALLET_PRIVATE_KEY, provider);
 const shotxCoinContract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractABI, wallet);
+// NFT (ERC1155) contract instance for owned NFT sync
+const nftContract = new ethers.Contract(process.env.NFT_CONTRACT_ADDRESS, nftContractABI, wallet);
 console.log(`✅ Backend server wallet address: ${wallet.address}`);
 
 // --- JWT Secret ---
@@ -84,6 +88,11 @@ app.post('/auth/login', async (req, res) => {
             console.log(`Syncing on-chain balance for ${lowerCaseAddress}`);
             const latestBalance = await getOnChainBalance(lowerCaseAddress);
             user.shotxBalance = latestBalance;
+
+            // NEW: Sync owned NFTs from chain and store in MongoDB, mirroring balance sync
+            console.log(`Syncing owned NFTs for ${lowerCaseAddress}`);
+            const ownedNfts = await getOwnedNFTsOnChain(lowerCaseAddress);
+            user.ownedNFTs = ownedNfts;
             await user.save();
 
             const token = jwt.sign({ address: lowerCaseAddress }, JWT_SECRET, { expiresIn: '1h' });
@@ -148,13 +157,45 @@ app.get('/api/user/:walletAddress', async (req, res) => {
 const upload = configureMulter();
 app.put('/api/user/:walletAddress/profile', upload.single('profilePic'), async (req, res) => {
     try {
-        const { username } = req.body;
+  const { username, ownedNFTs, shotxBalance } = req.body;
         const address = req.params.walletAddress.toLowerCase();
         const user = await User.findOne({ walletAddress: address });
 
         if (!user) return res.status(404).json({ message: 'User not found.' });
         
-        if (username) user.username = username;
+    if (username) user.username = username;
+    if (typeof shotxBalance === 'string' || typeof shotxBalance === 'number') {
+      user.shotxBalance = String(shotxBalance);
+    }
+
+    // NEW: Allow updating ownedNFTs via profile update endpoint (no new routes)
+    if (ownedNFTs) {
+      try {
+        const parsed = Array.isArray(ownedNFTs) ? ownedNFTs : JSON.parse(ownedNFTs);
+        // Accept either array of ObjectId strings or numeric tokenIds; normalize to Item ObjectIds
+        const ids = [];
+        const tokenIdsToResolve = [];
+        for (const v of parsed) {
+          const s = String(v);
+          if (/^[a-f\d]{24}$/i.test(s)) {
+            ids.push(s); // looks like ObjectId
+          } else if (!Number.isNaN(Number(s))) {
+            tokenIdsToResolve.push(Number(s));
+          }
+        }
+        if (tokenIdsToResolve.length) {
+          const items = await Item.find({ tokenId: { $in: tokenIdsToResolve } }, { _id: 1, tokenId: 1 });
+          const mapT = new Map(items.map(it => [Number(it.tokenId), String(it._id)]));
+          for (const t of tokenIdsToResolve) {
+            const oid = mapT.get(Number(t));
+            if (oid) ids.push(oid);
+          }
+        }
+        user.ownedNFTs = ids;
+      } catch (e) {
+        console.warn('Invalid ownedNFTs payload provided, ignoring.', e?.message || e);
+      }
+    }
 
         if (req.file) {
             if (user.profilePic && user.profilePic.public_id) {
@@ -249,6 +290,29 @@ const getOnChainBalance = async (userAddress) => {
         console.error(`Failed to fetch balance for ${userAddress}:`, error);
         return '0';
     }
+};
+
+// NEW: Helper to compute owned NFT token IDs for a user by scanning known marketplace items
+const getOwnedNFTsOnChain = async (userAddress) => {
+  try {
+    // Get the list of items (tokenId and _id) that exist in our marketplace DB
+    const items = await Item.find({}, { tokenId: 1 });
+    const owned = [];
+    // Query balances sequentially to avoid provider rate limits
+    for (const it of items) {
+      const tokenId = Number(it.tokenId);
+      try {
+        const bal = await nftContract.balanceOf(userAddress, tokenId);
+        if (bal && bal > 0n) owned.push(String(it._id));
+      } catch (innerErr) {
+        console.warn(`Failed balanceOf for token ${tokenId}:`, innerErr?.message || innerErr);
+      }
+    }
+    return owned;
+  } catch (error) {
+    console.error(`Failed to fetch owned NFTs for ${userAddress}:`, error);
+    return [];
+  }
 };
 
 // --- SERVER LISTENING ---

@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom"; // Import the Link component
 import { Pencil, LogOut, Trophy, Wallet, Check, X } from "lucide-react";
 import { motion, useInView } from "framer-motion";
-import { updateUserProfile, getShotXBalance } from '../services/blockchainService';
+import axios from 'axios';
+import { updateUserProfile } from '../services/blockchainService';
 
 // ================= BACKGROUND COMPONENT =================
 const SpaceBackground = () => {
@@ -208,6 +209,8 @@ export default function ProfilePage({ account, handleLogout }) {
   const [newUsername, setNewUsername] = useState('');
   const fileInputRef = useRef(null);
   const [shotxBalance, setShotxBalance] = useState('0.00');
+  const [ownedNfts, setOwnedNfts] = useState([]); // array of Item ObjectId strings
+  const [displayNfts, setDisplayNfts] = useState([]); // detailed items for UI
 
   // --- INTERNAL HANDLER FUNCTIONS ---
 
@@ -225,21 +228,40 @@ export default function ProfilePage({ account, handleLogout }) {
     // TODO: Add logic to refresh user data state in App.jsx
 };
 
-  // FETCHING SHOTX BALANCE
-
+  // SHOTX BALANCE: use DB value only on load; live fetching occurs on purchase/mint events elsewhere
   useEffect(() => {
     if (account?.walletAddress) {
       const cachedBalance = parseFloat(account.shotxBalance || '0').toFixed(2);
       setShotxBalance(cachedBalance);
-
-      const fetchLiveBalance = async () => {
-        const liveBalance = await getShotXBalance(account.walletAddress);
-        setShotxBalance(parseFloat(liveBalance).toFixed(2));
-      };
-      
-      fetchLiveBalance();
     }
   }, [account]);
+
+  // OWNED NFTS: use DB value on load; live fetching occurs on purchase success elsewhere
+  useEffect(() => {
+    if (!account?.walletAddress) return;
+    const cached = Array.isArray(account.ownedNFTs) ? account.ownedNFTs.map(String) : [];
+    setOwnedNfts(cached);
+  }, [account]);
+
+  // Build display list with item details from marketplace for rendering
+  useEffect(() => {
+    const buildDisplay = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+        const resp = await axios.get(`${API_URL}/api/items`);
+        const items = resp.data || [];
+        // ownedNfts contains Item ObjectIds; match by _id
+        const ownedSet = new Set(ownedNfts.map(String));
+        const filtered = items.filter(it => ownedSet.has(String(it._id)));
+        setDisplayNfts(filtered);
+      } catch (e) {
+        // Non-fatal: if items fail to load, we still show empty inventory gracefully
+        setDisplayNfts([]);
+      }
+    };
+    if (ownedNfts.length > 0) buildDisplay();
+    else setDisplayNfts([]);
+  }, [ownedNfts]);
 
   // --- UI EVENT TRIGGERS ---
   
@@ -287,9 +309,9 @@ export default function ProfilePage({ account, handleLogout }) {
   }
 
   const truncatedAddress = `${account.walletAddress.substring(0, 6)}...${account.walletAddress.substring(account.walletAddress.length - 4)}`;
-  const hasNfts = account.ownedNFTs && account.ownedNFTs.length > 0;
-  // This is now mock data as it's not passed in the account prop you provided
-  const nfts = account.ownedNFTs || []; 
+  const hasNfts = ownedNfts && ownedNfts.length > 0;
+  // Build UI list from marketplace items matching owned Item ObjectIds
+  const nfts = displayNfts; 
 
   const pageStyles = `
     .card-container { perspective: 1000px; }
@@ -400,7 +422,7 @@ export default function ProfilePage({ account, handleLogout }) {
                         initial="hidden"
                         animate="visible"
                     >
-                        {nfts.map((nft) => <NftCard key={nft.id} nft={nft} />)}
+                      {nfts.map((nft) => <NftCard key={nft._id || nft.tokenId} nft={nft} />)}
                     </motion.div>
                 ) : (
                     <div className="text-center py-16 px-6 bg-slate-900/50 backdrop-blur-lg rounded-xl border border-dashed border-cyan-500/40">

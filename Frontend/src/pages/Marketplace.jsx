@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Coins } from "lucide-react";
 import axios from 'axios';
 // Import the blockchain service functions we will use
-import { checkAllowance, approvePurchase, buyItem, checkNftBalance } from '../services/blockchainService';
+import { checkAllowance, approvePurchase, buyItem, checkNftBalance, getOwnedNFTs, getShotXBalance, updateUserProfile } from '../services/blockchainService';
 
 // ================= BACKGROUND COMPONENT =================
 // This component remains unchanged.
@@ -160,7 +160,37 @@ const NftPurchaseCard = ({ nft }) => {
         if (approvalSuccess) setButtonState('buy');
       } else if (buttonState === 'buy') {
         const buySuccess = await buyItem(nft.tokenId);
-        if (buySuccess) setButtonState('owned');
+        if (buySuccess) {
+          setButtonState('owned');
+          // After purchase, fetch on-chain state and persist to DB (ownedNFTs by ObjectId + shotxBalance)
+          try {
+            const provider = window.ethereum && new (await import('ethers')).ethers.BrowserProvider(window.ethereum);
+            const signer = provider && await provider.getSigner();
+            const userAddress = signer ? await signer.getAddress() : null;
+            if (userAddress) {
+              // 1) Get owned tokenIds from chain
+              const tokenIdStrings = await getOwnedNFTs(userAddress); // ["1","3",...]
+
+              // 2) Map tokenIds -> Item ObjectIds via /api/items
+              const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+              const itemsResp = await axios.get(`${API_URL}/api/items`);
+              const items = itemsResp.data || [];
+              const mapTokenToId = new Map(items.map(it => [String(it.tokenId), String(it._id)]));
+              const ownedObjectIds = tokenIdStrings.map(t => mapTokenToId.get(String(t))).filter(Boolean);
+
+              // 3) Fetch current ShotX balance from chain
+              const liveBalance = await getShotXBalance(userAddress);
+
+              // 4) Persist both to backend via profile update (no popup due to conditional alert)
+              const fd = new FormData();
+              fd.append('ownedNFTs', JSON.stringify(ownedObjectIds));
+              fd.append('shotxBalance', String(liveBalance));
+              await updateUserProfile(userAddress, fd);
+            }
+          } catch (persistErr) {
+            console.warn('Failed to persist purchase state to backend:', persistErr);
+          }
+        }
       }
     } catch (error) {
       console.error("Transaction failed:", error);

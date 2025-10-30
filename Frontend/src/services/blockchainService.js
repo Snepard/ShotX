@@ -96,8 +96,12 @@ export const fetchUserProfile = async (walletAddress) => {
 export const updateUserProfile = async (walletAddress, formData) => {
     try {
         const config = { headers: { 'Content-Type': 'multipart/form-data' }, withCredentials: true };
-        const response = await axios.put(`${API_URL}/api/user/${walletAddress}/profile`, formData, config);
-        alert('Profile updated successfully!');
+        const response = await axios.put(`${API_URL}/api/user/${walletAddress}/profile`, formData, config);
+        // Only show success alert when user explicitly changes profile credentials
+        // i.e., when updating username or profile picture via the edit UI.
+        if (typeof formData?.has === 'function' && (formData.has('username') || formData.has('profilePic'))) {
+            alert('Profile updated successfully!');
+        }
         return response.data;
     } catch (error) {
         console.error("❌ Failed to update user profile:", error);
@@ -149,6 +153,37 @@ export const getShotXBalance = async (userAddress) => {
         console.error("❌ Failed to fetch ShotX balance:", error);
         return '0';
     }
+};
+
+// Fetch user's owned NFT token IDs by scanning marketplace items and checking ERC1155 balances
+export const getOwnedNFTs = async (userAddress) => {
+    if (!window.ethereum || !userAddress) return [];
+    try {
+        // 1) Get list of tokenIds from our backend (marketplace items)
+        const itemsResp = await axios.get(`${API_URL}/api/items`);
+        const tokenIds = (itemsResp.data || [])
+            .map(it => Number(it.tokenId))
+            .filter(Number.isFinite);
+
+        // 2) Check balances on the ERC1155 contract
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const itemsContract = new ethers.Contract(SHOTX_ITEMS_ADDRESS, ShotXItemsABI, signer);
+
+        const owned = [];
+        for (const tokenId of tokenIds) {
+            try {
+                const bal = await itemsContract.balanceOf(userAddress, tokenId);
+                if (bal && bal > 0n) owned.push(tokenId.toString());
+            } catch (err) {
+                console.warn(`balanceOf failed for token ${tokenId}:`, err?.message || err);
+            }
+        }
+        return owned;
+    } catch (error) {
+        console.error('❌ Failed to fetch owned NFTs:', error);
+        return [];
+    }
 };
 
 // ===================================================================================

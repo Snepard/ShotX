@@ -42,9 +42,10 @@ const UserSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
-    // An array of strings to identify owned NFTs (e.g., skin IDs)
+    // An array of Item ObjectIds to identify owned NFTs
     ownedNFTs: [{
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Item'
     }],
 }, { 
     // Automatically adds `createdAt` and `updatedAt` fields for record-keeping
