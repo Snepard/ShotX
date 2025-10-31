@@ -11,6 +11,7 @@ import {
   fetchUserProfile,
   logoutUser 
 } from './services/blockchainService';
+import AdminPage from "./pages/AdminPage";
 
 const AppContent = () => {
   const [userData, setUserData] = useState(null);
@@ -70,6 +71,7 @@ const AppContent = () => {
         <Route path="/Marketplace" element={<Marketplace />} />
       </Route>
       <Route path="/Game" element={<GamePage connectedAccount={userData?.walletAddress} />} />
+      <Route path="/admin" element={<AdminPage />} />
     </Routes>
   );
 };

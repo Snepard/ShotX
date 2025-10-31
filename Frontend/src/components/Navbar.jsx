@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
-import { Gamepad2, Menu, X, Wallet } from "lucide-react";
+import { Gamepad2, Menu, X, Wallet, Coins } from "lucide-react";
 
 // The Navbar receives the `account` prop (which is our userData object)
 // and the `handleConnect` prop (which is our handleLogin function).
@@ -31,6 +31,15 @@ const Navbar = ({ account, handleConnect }) => {
       )}`
     : null;
 
+  // Format ShotX balance for display
+  const formatBalance = (balance) => {
+    if (!balance) return "0";
+    const num = parseFloat(balance);
+    if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(2)}K`;
+    return num.toFixed(2);
+  };
+
   return (
     <>
       <style>{`
@@ -46,6 +55,7 @@ const Navbar = ({ account, handleConnect }) => {
         .btn-primary::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent); transition: left 0.5s ease; }
         .btn-primary:hover::before { left: 100%; }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(6, 182, 212, 0.3), 0 0 20px rgba(6, 182, 212, 0.2); }
+        .balance-badge { background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2)); border: 1px solid rgba(6, 182, 212, 0.3); backdrop-filter: blur(10px); }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
         .mobile-menu { animation: slideDown 0.3s ease-out; }
         .hologram-text { background: linear-gradient(45deg, #06b6d4, #3b82f6, #8b5cf6, #06b6d4); background-size: 300% 300%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: hologramShift 4s ease-in-out infinite; }
@@ -110,17 +120,25 @@ const Navbar = ({ account, handleConnect }) => {
               <button
                 onClick={!account ? handleConnect : () => {}}
                 disabled={!!account}
-                className={`hidden lg:flex items-center space-x-2 btn-primary text-white font-bold rounded-full transition-all duration-300 navbar-transition cursor-pointer ${
+                className={`hidden lg:flex items-center space-x-2 btn-primary text-white font-bold rounded-full transition-all duration-300 navbar-transition ${
+                  account ? 'cursor-default' : 'cursor-pointer'
+                } ${
                   isScrolled ? "px-6 py-3 text-sm" : "px-8 py-4 text-base"
                 }`}
               >
-                <Wallet className={`${isScrolled ? "w-4 h-4" : "w-5 h-5"}`} />
-                <span>
-                  {/* ✅ CORRECTED: Intelligently display user's name or address. */}
-                  {account
-                    ? truncatedAddress || account.username
-                    : "Connect Wallet"}
-                </span>
+                {account ? (
+                  <>
+                    <Coins className={`${isScrolled ? "w-4 h-4" : "w-5 h-5"} text-white`} />
+                    <span className="text-white font-semibold">
+                      {formatBalance(account.shotxBalance)} SXC
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Wallet className={`${isScrolled ? "w-4 h-4" : "w-5 h-5"}`} />
+                    <span>Connect Wallet</span>
+                  </>
+                )}
               </button>
 
               <button
@@ -167,15 +185,23 @@ const Navbar = ({ account, handleConnect }) => {
                   <button
                     onClick={!account ? handleConnect : () => {}}
                     disabled={!!account}
-                    className="w-full btn-primary text-white font-bold px-6 py-3 rounded-full flex items-center justify-center space-x-2 transition-all duration-300"
+                    className={`w-full btn-primary text-white font-bold px-6 py-3 rounded-full flex items-center justify-center space-x-2 transition-all duration-300 ${
+                      account ? 'cursor-default' : 'cursor-pointer'
+                    }`}
                   >
-                    <Wallet className="w-5 h-5" />
-                    <span>
-                      {/* ✅ CORRECTED: Same fix for the mobile menu button. */}
-                      {account
-                        ? truncatedAddress || account.username
-                        : "Connect Wallet"}
-                    </span>
+                    {account ? (
+                      <>
+                        <Coins className="w-5 h-5 text-white" />
+                        <span className="text-white font-semibold">
+                          {formatBalance(account.shotxBalance)} SXC
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Wallet className="w-5 h-5" />
+                        <span>Connect Wallet</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
