@@ -1364,25 +1364,63 @@ const Leaderboard = ({ account }) => {
     let cancelled = false;
     const load = async () => {
       try {
-        // 1) Discover wallet addresses to score from DB via items owners + current account
-        const res = await fetch("http://localhost:5001/api/items", {
-          credentials: "include",
-        });
-        const items = res.ok ? await res.json() : [];
-        const ownerSet = new Set();
-        for (const it of Array.isArray(items) ? items : []) {
-          if (it?.currentOwnerAddress) ownerSet.add(String(it.currentOwnerAddress).toLowerCase());
+        // Collect candidate wallets from:
+        // - Local storage (persisted from previous visits)
+        // - Owners of marketplace items (public API)
+        // - Currently connected account (if any)
+        const stored = (() => {
+          try {
+            const raw = localStorage.getItem("shotxKnownWallets");
+            return Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+          } catch {
+            return [];
+          }
+        })();
+
+        const ownerSet = new Set((stored || []).map((a) => String(a).toLowerCase()));
+
+        // Env-provided seed wallets (comma-separated) so leaderboard works with no session
+        try {
+          const seed = import.meta.env.VITE_SEED_WALLETS || "";
+          if (seed) {
+            seed
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .forEach((addr) => ownerSet.add(addr.toLowerCase()));
+          }
+        } catch {}
+
+        // Discover from items API (works even if not logged in)
+        try {
+          const res = await fetch("http://localhost:5001/api/items");
+          const items = res.ok ? await res.json() : [];
+          for (const it of Array.isArray(items) ? items : []) {
+            if (it?.currentOwnerAddress) ownerSet.add(String(it.currentOwnerAddress).toLowerCase());
+          }
+        } catch (e) {
+          console.warn("Items fetch failed for leaderboard seed:", e?.message || e);
         }
-        if (account?.walletAddress) ownerSet.add(account.walletAddress.toLowerCase());
+
+        // Add current account if present, and persist for future sessions
+        if (account?.walletAddress) {
+          ownerSet.add(account.walletAddress.toLowerCase());
+        }
+        try {
+          localStorage.setItem(
+            "shotxKnownWallets",
+            JSON.stringify(Array.from(ownerSet))
+          );
+        } catch {}
 
         // Limit to avoid excessive requests
-        const addresses = Array.from(ownerSet).slice(0, 30);
+        const addresses = Array.from(ownerSet).slice(0, 50);
         if (addresses.length === 0) {
           setPlayers([]);
           return;
         }
 
-        // 2) Fetch each user's profile from DB and collect their highestScore
+        // Fetch each user's profile and extract leaderboard stats
         const fetched = await Promise.all(
           addresses.map(async (addr) => {
             try {
@@ -1406,7 +1444,6 @@ const Leaderboard = ({ account }) => {
         if (cancelled) return;
 
         const valid = fetched.filter(Boolean).sort((a, b) => b.score - a.score);
-        // Assign ranks
         const ranked = valid.map((p, idx) => ({ ...p, rank: idx + 1 }));
         setPlayers(ranked);
       } catch (e) {
@@ -1421,16 +1458,8 @@ const Leaderboard = ({ account }) => {
     };
   }, [account]);
 
-  // Fallback placeholder if nothing to show
-  const fallback = [
-    { rank: 1, name: "Player One", score: 0, nftsOwned: 0, avatar: "https://i.pravatar.cc/100?u=1" },
-    { rank: 2, name: "Player Two", score: 0, nftsOwned: 0, avatar: "https://i.pravatar.cc/100?u=2" },
-    { rank: 3, name: "Player Three", score: 0, nftsOwned: 0, avatar: "https://i.pravatar.cc/100?u=3" },
-  ];
-
-  const data = players.length ? players : fallback;
-  const top3 = data.slice(0, 3);
-  const rest = data.slice(3);
+  const top3 = players.slice(0, 3);
+  const rest = players.slice(3);
 
   return (
     <section id="leaderboard" className="leaderboard-section">
@@ -1458,38 +1487,57 @@ const Leaderboard = ({ account }) => {
           </p>
         </AnimatedOnScroll>
 
-        <AnimatedOnScroll animation="fade-in-up" className="leaderboard-top-3">
-          {top3.map((player) => (
-            <div
-              key={player.rank}
-              className={`leaderboard-player-card rank-${player.rank}`}
-            >
-              <div className="avatar-wrapper">
-                {player.rank === 1 && (
-                  <Award className="rank-badge" strokeWidth={1.5} />
-                )}
-                <img src={player.avatar} alt={player.name} className="avatar" />
+        {loading ? (
+          <AnimatedOnScroll animation="fade-in-up" className="leaderboard-top-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className={`leaderboard-player-card rank-${i}`}>
+                <div className="avatar-wrapper">
+                  <div className="avatar" style={{ background: "#0f172a" }} />
+                </div>
+                <div className="font-orbitron" style={{ opacity: 0.5 }}>
+                  Loading...
+                </div>
               </div>
-              <h3 className="font-orbitron" style={{ margin: "0 0 4px 0" }}>
-                {player.name}
-              </h3>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "1rem",
-                  color: `rgba(var(--accent-cyan),1)`,
-                }}
+            ))}
+          </AnimatedOnScroll>
+        ) : top3.length > 0 ? (
+          <AnimatedOnScroll animation="fade-in-up" className="leaderboard-top-3">
+            {top3.map((player) => (
+              <div
+                key={player.rank}
+                className={`leaderboard-player-card rank-${player.rank}`}
               >
-                {Number(player.score || 0).toLocaleString()}
-              </p>
-              <span style={{ fontSize: "0.8rem", color: "#A0AEC0" }}>
-                {player.nftsOwned} NFTs
-              </span>
-            </div>
-          ))}
-        </AnimatedOnScroll>
+                <div className="avatar-wrapper">
+                  {player.rank === 1 && (
+                    <Award className="rank-badge" strokeWidth={1.5} />
+                  )}
+                  <img src={player.avatar} alt={player.name} className="avatar" />
+                </div>
+                <h3 className="font-orbitron" style={{ margin: "0 0 4px 0" }}>
+                  {player.name}
+                </h3>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "1rem",
+                    color: `rgba(var(--accent-cyan),1)`,
+                  }}
+                >
+                  {Number(player.score || 0).toLocaleString()}
+                </p>
+                <span style={{ fontSize: "0.8rem", color: "#A0AEC0" }}>
+                  {player.nftsOwned} NFTs
+                </span>
+              </div>
+            ))}
+          </AnimatedOnScroll>
+        ) : (
+          <div style={{ textAlign: "center", color: "#A0AEC0", marginBottom: 24 }}>
+            Connect Wallet To View Leaderboard.
+          </div>
+        )}
 
-        {rest.length > 0 && (
+        {!loading && rest.length > 0 && (
           <div className="leaderboard-list">
             {rest.map((player, index) => (
               <AnimatedOnScroll
