@@ -12,6 +12,7 @@ import {
   logoutUser 
 } from './services/blockchainService';
 import AdminPage from "./pages/AdminPage";
+import AdminRoute from "./components/AdminRoute";
 
 const AppContent = () => {
   const [userData, setUserData] = useState(null);
@@ -69,9 +70,9 @@ const AppContent = () => {
         <Route path="/" element={<HomePage />} />
         <Route path="/Profile" element={<ProfilePage account={userData} handleLogout={handleLogout} />} />
         <Route path="/Marketplace" element={<Marketplace />} />
+        <Route path="/admin" element={<AdminRoute account={userData}><AdminPage /></AdminRoute>} />
       </Route>
       <Route path="/Game" element={<GamePage connectedAccount={userData?.walletAddress} />} />
-      <Route path="/admin" element={<AdminPage />} />
     </Routes>
   );
 };

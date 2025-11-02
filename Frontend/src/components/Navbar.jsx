@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { NavLink } from "react-router-dom";
 import { Gamepad2, Menu, X, Wallet, Coins } from "lucide-react";
 
@@ -8,11 +8,33 @@ const Navbar = ({ account, handleConnect }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const navLinks = [
-    { name: "Game", to: "/game" },
-    { name: "Profile", to: "/profile" },
-    { name: "Marketplace", to: "/marketplace" },
-  ];
+  // ✅ UPDATED: navLinks is now dynamically generated based on admin status
+  const navLinks = useMemo(() => {
+    // 1. Get the admin wallet address from environment variables
+    const adminWalletAddress = import.meta.env.VITE_ADMIN_WALLET;
+
+    // 2. Define the base links available to all users
+    const baseLinks = [
+      { name: "Game", to: "/game" },
+      { name: "Profile", to: "/profile" },
+      { name: "Marketplace", to: "/marketplace" },
+    ];
+
+    // 3. Check if the logged-in user is the admin
+    // We use .toLowerCase() on both for a reliable, case-insensitive comparison
+    const isAdmin =
+      account?.walletAddress &&
+      adminWalletAddress &&
+      account.walletAddress.toLowerCase() === adminWalletAddress.toLowerCase();
+
+    // 4. If they are an admin, add the Admin page link
+    if (isAdmin) {
+      return [...baseLinks, { name: "Admin", to: "/admin" }];
+    }
+
+    // 5. If not an admin, just return the base links
+    return baseLinks;
+  }, [account]); // This dependency array ensures this logic re-runs when the user logs in/out
 
   useEffect(() => {
     const handleScroll = () => {
@@ -97,6 +119,7 @@ const Navbar = ({ account, handleConnect }) => {
             </NavLink>
 
             <div className="hidden lg:flex items-center space-x-2">
+              {/* This map now renders the dynamic navLinks */}
               {navLinks.map((link) => (
                 <NavLink
                   key={link.name}
@@ -121,21 +144,27 @@ const Navbar = ({ account, handleConnect }) => {
                 onClick={!account ? handleConnect : () => {}}
                 disabled={!!account}
                 className={`hidden lg:flex items-center space-x-2 btn-primary text-white font-bold rounded-full transition-all duration-300 navbar-transition ${
-                  account ? 'cursor-default' : 'cursor-pointer'
+                  account ? "cursor-default" : "cursor-pointer"
                 } ${
                   isScrolled ? "px-6 py-3 text-sm" : "px-8 py-4 text-base"
                 }`}
               >
                 {account ? (
                   <>
-                    <Coins className={`${isScrolled ? "w-4 h-4" : "w-5 h-5"} text-white`} />
+                    <Coins
+                      className={`${
+                        isScrolled ? "w-4 h-4" : "w-5 h-5"
+                      } text-white`}
+                    />
                     <span className="text-white font-semibold">
                       {formatBalance(account.shotxBalance)} SXC
                     </span>
                   </>
                 ) : (
                   <>
-                    <Wallet className={`${isScrolled ? "w-4 h-4" : "w-5 h-5"}`} />
+                    <Wallet
+                      className={`${isScrolled ? "w-4 h-4" : "w-5 h-5"}`}
+                    />
                     <span>Connect Wallet</span>
                   </>
                 )}
@@ -165,6 +194,7 @@ const Navbar = ({ account, handleConnect }) => {
           >
             <div className="glass-effect border border-white/10 rounded-2xl overflow-hidden mobile-menu">
               <div className="p-6 space-y-4">
+                {/* This map also renders the dynamic navLinks */}
                 {navLinks.map((link) => (
                   <NavLink
                     key={link.name}
@@ -186,7 +216,7 @@ const Navbar = ({ account, handleConnect }) => {
                     onClick={!account ? handleConnect : () => {}}
                     disabled={!!account}
                     className={`w-full btn-primary text-white font-bold px-6 py-3 rounded-full flex items-center justify-center space-x-2 transition-all duration-300 ${
-                      account ? 'cursor-default' : 'cursor-pointer'
+                      account ? "cursor-default" : "cursor-pointer"
                     }`}
                   >
                     {account ? (
