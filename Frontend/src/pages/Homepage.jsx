@@ -1085,104 +1085,104 @@ const NFTCard = ({ name, rarity, img, price }) => {
 };
 
 const HowToViewCoins = () => {
-  // --- IMPORTANT: Replace this with your actual contract address ---
-  const CONTRACT_ADDRESS = "0xe256884B1eBC08d4130B543d91001437B1FD5e1F";
-  const [isCopied, setIsCopied] = useState(false);
+  // --- IMPORTANT: Replace these with your actual contract addresses ---
+  const COIN_CONTRACT_ADDRESS = "0xe256884B1eBC08d4130B543d91001437B1FD5e1F";
+  const NFT_CONTRACT_ADDRESS = "0x1e62C9262f5783de42A3070cDa158a372dea6A3B";
 
-  // --- MODIFIED handleCopy Function ---
-  const handleCopy = async () => {
-    // Make the function async to handle the promise
+  const [isCopiedCoin, setIsCopiedCoin] = useState(false);
+  const [isCopiedNft, setIsCopiedNft] = useState(false);
+
+  // --- Handler for Coin Address ---
+  const handleCopyCoin = async () => {
     try {
-      await navigator.clipboard.writeText(CONTRACT_ADDRESS);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2500); // Reset after 2.5 seconds
+      await navigator.clipboard.writeText(COIN_CONTRACT_ADDRESS);
+      setIsCopiedCoin(true);
+      setTimeout(() => setIsCopiedCoin(false), 2500);
     } catch (error) {
-      console.error("Failed to copy address to clipboard:", error);
-      // Fallback for older browsers or non-secure contexts
+      console.error("Failed to copy coin address to clipboard:", error);
       alert("Failed to copy automatically. Please copy the address manually.");
     }
   };
 
+  // --- Handler for NFT Address ---
+  const handleCopyNft = async () => {
+    try {
+      await navigator.clipboard.writeText(NFT_CONTRACT_ADDRESS);
+      setIsCopiedNft(true);
+      setTimeout(() => setIsCopiedNft(false), 2500);
+    } catch (error) {
+      console.error("Failed to copy NFT address to clipboard:", error);
+      alert("Failed to copy automatically. Please copy the address manually.");
+    }
+  };
+
+  // Shared classes for the address blocks
+  const addressBlockClasses =
+    "flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/35 px-4 py-3";
+
+  // Shared classes for the copy buttons
+  const baseButtonClasses =
+    "btn flex min-w-[105px] cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 py-2";
+
   return (
-    <div style={{ width: "100%" }}>
-      <h3
-        className="font-orbitron"
-        style={{ fontSize: 20, margin: "0 0 12px 0" }}
-      >
-        View Your ShotX Coins in MetaMask
+    <div className="w-full">
+      <h3 className="font-orbitron mb-3 text-xl">
+        View Your Assets in MetaMask
       </h3>
-      <p style={{ color: "#A0AEC0", margin: "0 0 20px 0", maxWidth: "80%" }}>
-        Your coins are in your wallet but may not be visible yet. Follow these
-        quick steps to add them.
+      <p className="mb-5 max-w-[80%] text-gray-400">
+        Your ShotxCoins/NFTs are in your wallet but may not be visible yet. Follow
+        these quick steps to add them.
       </p>
 
-      {/* Contract Address Section */}
-      <div
-        style={{
-          background: "rgba(0,0,0,0.35)",
-          borderRadius: "12px",
-          padding: "12px 16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          border: "1px solid rgba(255,255,255,0.1)",
-          marginBottom: "24px",
-          gap: "16px",
-        }}
-      >
-        <code
-          style={{
-            fontFamily: "monospace",
-            color: "#E0E0E0",
-            fontSize: "1rem",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {CONTRACT_ADDRESS}
+      {/* Coin Contract Address Section */}
+      <div className={`${addressBlockClasses} mb-3`}>
+        <code className="font-mono text-base text-gray-200 overflow-hidden text-ellipsis whitespace-nowrap">
+          {COIN_CONTRACT_ADDRESS}
         </code>
         <button
-          onClick={handleCopy}
-          className="btn"
-          style={{
-            padding: "8px 12px",
-            background: isCopied
-              ? "rgba(var(--accent-cyan), .2)"
-              : "rgba(255,255,255,.1)",
-            color: isCopied ? `rgba(var(--accent-cyan), 1)` : "white",
-            minWidth: "95px",
-            cursor: "pointer",
-          }}
+          onClick={handleCopyCoin}
+          className={`${baseButtonClasses} ${
+            isCopiedCoin
+              ? "bg-[rgba(var(--accent-cyan),.2)] text-[rgba(var(--accent-cyan),1)]"
+              : "bg-white/10 text-white"
+          }`}
         >
-          {isCopied ? <Check size={16} /> : <Copy size={16} />}
-          <span>{isCopied ? "Copied!" : "Copy"}</span>
+          {isCopiedCoin ? <Check size={16} /> : <Copy size={16} />}
+          <span>{isCopiedCoin ? "Copied!" : "Copy Coin"}</span>
+        </button>
+      </div>
+
+      {/* NFT Contract Address Section */}
+      <div className={`${addressBlockClasses} mb-6`}>
+        <code className="font-mono text-base text-gray-200 overflow-hidden text-ellipsis whitespace-nowrap">
+          {NFT_CONTRACT_ADDRESS}
+        </code>
+        <button
+          onClick={handleCopyNft}
+          className={`${baseButtonClasses} ${
+            isCopiedNft
+              ? "bg-[rgba(var(--accent-cyan),.2)] text-[rgba(var(--accent-cyan),1)]"
+              : "bg-white/10 text-white"
+          }`}
+        >
+          {isCopiedNft ? <Check size={16} /> : <Copy size={16} />}
+          <span>{isCopiedNft ? "Copied!" : "Copy NFT"}</span>
         </button>
       </div>
 
       {/* Steps Section */}
-      <ol
-        style={{
-          paddingLeft: "20px",
-          margin: 0,
-          color: "#A0AEC0",
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
-          textAlign: "left",
-        }}
-      >
+      <ol className="m-0 flex flex-col gap-3 pl-5 text-left text-gray-400">
         <li>
           Open <strong>MetaMask</strong> and click{" "}
-          <strong>'Import tokens'</strong>.
+          <strong>'Import tokens'/'Import NFTs'</strong>.
         </li>
         <li>
-          Select the <strong>'Custom Token'</strong> tab.
+          Select <strong>'Sepolia'</strong> in the network tab.
         </li>
         <li>Paste the copied address into the first field.</li>
-        <li>The Symbol (SXC) and Decimals should auto-fill.</li>
+        <li>Enter token id. (for NFTs only)</li>
         <li>
-          Click <strong>'Add Custom Token'</strong> to finish. ✅
+          Click <strong>'Import'</strong> to finish.
         </li>
       </ol>
     </div>
@@ -1377,7 +1377,9 @@ const Leaderboard = ({ account }) => {
           }
         })();
 
-        const ownerSet = new Set((stored || []).map((a) => String(a).toLowerCase()));
+        const ownerSet = new Set(
+          (stored || []).map((a) => String(a).toLowerCase())
+        );
 
         // Env-provided seed wallets (comma-separated) so leaderboard works with no session
         try {
@@ -1396,10 +1398,14 @@ const Leaderboard = ({ account }) => {
           const res = await fetch("http://localhost:5001/api/items");
           const items = res.ok ? await res.json() : [];
           for (const it of Array.isArray(items) ? items : []) {
-            if (it?.currentOwnerAddress) ownerSet.add(String(it.currentOwnerAddress).toLowerCase());
+            if (it?.currentOwnerAddress)
+              ownerSet.add(String(it.currentOwnerAddress).toLowerCase());
           }
         } catch (e) {
-          console.warn("Items fetch failed for leaderboard seed:", e?.message || e);
+          console.warn(
+            "Items fetch failed for leaderboard seed:",
+            e?.message || e
+          );
         }
 
         // Add current account if present, and persist for future sessions
@@ -1433,7 +1439,8 @@ const Leaderboard = ({ account }) => {
                 score: Number(u?.highestScore || 0),
                 nftsOwned: Array.isArray(u?.ownedNFTs) ? u.ownedNFTs.length : 0,
                 avatar:
-                  u?.profilePic?.url || `https://i.pravatar.cc/100?u=${encodeURIComponent(addr)}`,
+                  u?.profilePic?.url ||
+                  `https://i.pravatar.cc/100?u=${encodeURIComponent(addr)}`,
               };
             } catch (_) {
               return null;
@@ -1488,7 +1495,10 @@ const Leaderboard = ({ account }) => {
         </AnimatedOnScroll>
 
         {loading ? (
-          <AnimatedOnScroll animation="fade-in-up" className="leaderboard-top-3">
+          <AnimatedOnScroll
+            animation="fade-in-up"
+            className="leaderboard-top-3"
+          >
             {[1, 2, 3].map((i) => (
               <div key={i} className={`leaderboard-player-card rank-${i}`}>
                 <div className="avatar-wrapper">
@@ -1501,7 +1511,10 @@ const Leaderboard = ({ account }) => {
             ))}
           </AnimatedOnScroll>
         ) : top3.length > 0 ? (
-          <AnimatedOnScroll animation="fade-in-up" className="leaderboard-top-3">
+          <AnimatedOnScroll
+            animation="fade-in-up"
+            className="leaderboard-top-3"
+          >
             {top3.map((player) => (
               <div
                 key={player.rank}
@@ -1511,7 +1524,11 @@ const Leaderboard = ({ account }) => {
                   {player.rank === 1 && (
                     <Award className="rank-badge" strokeWidth={1.5} />
                   )}
-                  <img src={player.avatar} alt={player.name} className="avatar" />
+                  <img
+                    src={player.avatar}
+                    alt={player.name}
+                    className="avatar"
+                  />
                 </div>
                 <h3 className="font-orbitron" style={{ margin: "0 0 4px 0" }}>
                   {player.name}
@@ -1532,7 +1549,9 @@ const Leaderboard = ({ account }) => {
             ))}
           </AnimatedOnScroll>
         ) : (
-          <div style={{ textAlign: "center", color: "#A0AEC0", marginBottom: 24 }}>
+          <div
+            style={{ textAlign: "center", color: "#A0AEC0", marginBottom: 24 }}
+          >
             Connect Wallet To View Leaderboard.
           </div>
         )}
@@ -1572,11 +1591,8 @@ const Leaderboard = ({ account }) => {
 const HeroStatPods = () => {
   const { account } = useOutletContext();
   if (!account) {
-        return (
-            <div className="grid md:grid-cols-3 gap-6 animate-pulse">
-            </div>
-        );
-    }
+    return <div className="grid md:grid-cols-3 gap-6 animate-pulse"></div>;
+  }
   const pods = [
     {
       icon: Coins,
