@@ -1362,108 +1362,63 @@ const Leaderboard = ({ account }) => {
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
+    const loadLeaderboard = async () => {
+      setLoading(true);
       try {
-        // Collect candidate wallets from:
-        // - Local storage (persisted from previous visits)
-        // - Owners of marketplace items (public API)
-        // - Currently connected account (if any)
-        const stored = (() => {
-          try {
-            const raw = localStorage.getItem("shotxKnownWallets");
-            return Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
-          } catch {
-            return [];
-          }
-        })();
-
-        const ownerSet = new Set(
-          (stored || []).map((a) => String(a).toLowerCase())
-        );
-
-        // Env-provided seed wallets (comma-separated) so leaderboard works with no session
-        try {
-          const seed = import.meta.env.VITE_SEED_WALLETS || "";
-          if (seed) {
-            seed
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-              .forEach((addr) => ownerSet.add(addr.toLowerCase()));
-          }
-        } catch {}
-
-        // Discover from items API (works even if not logged in)
-        try {
-          const res = await fetch("http://localhost:5001/api/items");
-          const items = res.ok ? await res.json() : [];
-          for (const it of Array.isArray(items) ? items : []) {
-            if (it?.currentOwnerAddress)
-              ownerSet.add(String(it.currentOwnerAddress).toLowerCase());
-          }
-        } catch (e) {
-          console.warn(
-            "Items fetch failed for leaderboard seed:",
-            e?.message || e
-          );
-        }
-
-        // Add current account if present, and persist for future sessions
-        if (account?.walletAddress) {
-          ownerSet.add(account.walletAddress.toLowerCase());
-        }
-        try {
-          localStorage.setItem(
-            "shotxKnownWallets",
-            JSON.stringify(Array.from(ownerSet))
-          );
-        } catch {}
-
-        // Limit to avoid excessive requests
-        const addresses = Array.from(ownerSet).slice(0, 50);
-        if (addresses.length === 0) {
-          setPlayers([]);
-          return;
-        }
-
-        // Fetch each user's profile and extract leaderboard stats
-        const fetched = await Promise.all(
-          addresses.map(async (addr) => {
-            try {
-              const r = await fetch(`http://localhost:5001/api/user/${addr}`);
-              if (!r.ok) return null; // skip users not in DB yet
-              const u = await r.json();
-              return {
-                wallet: addr,
-                name: u?.username || maskAddress(addr),
-                score: Number(u?.highestScore || 0),
-                nftsOwned: Array.isArray(u?.ownedNFTs) ? u.ownedNFTs.length : 0,
-                avatar:
-                  u?.profilePic?.url ||
-                  `https://i.pravatar.cc/100?u=${encodeURIComponent(addr)}`,
-              };
-            } catch (_) {
-              return null;
-            }
-          })
-        );
-
+        // 1. Fetch all users from a single, dedicated endpoint
+        // (This assumes your backend has a GET /api/users endpoint)
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/users`);
         if (cancelled) return;
 
-        const valid = fetched.filter(Boolean).sort((a, b) => b.score - a.score);
-        const ranked = valid.map((p, idx) => ({ ...p, rank: idx + 1 }));
-        setPlayers(ranked);
+        if (!res.ok) {
+          throw new Error(`Failed to fetch user list: ${res.statusText}`);
+        }
+
+        const users = await res.json();
+        if (!Array.isArray(users)) {
+          throw new Error("Leaderboard data was not an array");
+        }
+
+        // 2. Map, sort, and rank the user data
+        const sorted = users
+          .map((u) => ({
+            // Use the same data-shaping logic as before
+            wallet: u?.walletAddress,
+            name: u?.username || maskAddress(u?.walletAddress),
+            score: Number(u?.highestScore || 0),
+            nftsOwned: Array.isArray(u?.ownedNFTs) ? u.ownedNFTs.length : 0,
+            avatar:
+              u?.profilePic?.url ||
+              `https://i.pravatar.cc/100?u=${encodeURIComponent(
+                u?.walletAddress
+              )}`,
+          }))
+          .filter((p) => p.wallet && p.score > 0) // Filter for players with a wallet and score
+          .sort((a, b) => b.score - a.score); // Sort by score descending
+
+        const ranked = sorted.map((p, idx) => ({ ...p, rank: idx + 1 }));
+
+        if (!cancelled) {
+          setPlayers(ranked);
+        }
       } catch (e) {
         console.warn("Failed to load leaderboard:", e?.message || e);
+        if (!cancelled) {
+          setPlayers([]); // Set to empty array on failure
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
-    load();
+
+    loadLeaderboard();
+
     return () => {
       cancelled = true;
     };
-  }, [account]);
+  }, []);
 
   const top3 = players.slice(0, 3);
   const rest = players.slice(3);
@@ -1552,7 +1507,7 @@ const Leaderboard = ({ account }) => {
           <div
             style={{ textAlign: "center", color: "#A0AEC0", marginBottom: 24 }}
           >
-            Connect Wallet To View Leaderboard.
+            No players found. Be the first to set a score!
           </div>
         )}
 
