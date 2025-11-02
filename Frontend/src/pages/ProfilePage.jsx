@@ -6,6 +6,7 @@ import axios from 'axios';
 import { updateUserProfile } from '../services/blockchainService';
 
 // ================= BACKGROUND COMPONENT =================
+// This component remains unchanged.
 const SpaceBackground = () => {
   const canvasRef = useRef(null);
 
@@ -129,6 +130,59 @@ const EmptyInventoryIcon = () => (
     </svg>
 );
 
+// ================= NEW: NFT DETAIL MODAL =================
+// We add the identical modal component from Marketplace.jsx
+const NftDetailModal = ({ nft, onClose }) => {
+  const backdropRef = useRef(null);
+
+  const handleBackdropClick = (e) => {
+    if (backdropRef.current === e.target) {
+      onClose();
+    }
+  };
+
+  return (
+    <motion.div
+      ref={backdropRef}
+      className="nft-modal-backdrop"
+      onClick={handleBackdropClick}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <motion.div
+        className="nft-modal-content"
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.8, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      >
+        <img src={nft.imageUrl} alt={nft.name} className="nft-modal-image" />
+        <div className="nft-modal-details">
+          <h2 className="font-orbitron text-3xl font-bold text-white text-glow">{nft.name}</h2>
+          <p className="text-gray-300 mt-2 mb-4 max-w-lg">{nft.description || "No description available."}</p>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 text-cyan-300">
+              <Coins size={20} />
+              <span className="font-orbitron text-2xl font-bold">
+                {nft.price ? nft.price.toLocaleString() : "---"} SXC
+              </span>
+            </div>
+            <div className="text-gray-400 text-sm font-mono">
+              <span className="font-bold">TOKEN ID:</span> {nft.tokenId}
+            </div>
+          </div>
+        </div>
+        <button onClick={onClose} className="nft-modal-close">
+          <X size={24} />
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+
 // ================= HELPER & UI COMPONENTS =================
 const AnimatedStat = ({ value, isCurrency = false }) => {
     const ref = useRef(null);
@@ -193,7 +247,8 @@ const StatBox = ({ title, value, icon, isCurrency }) => (
   </motion.div>
 );
 
-const NftCard = ({ nft }) => (
+// MODIFIED: Added onImageClick prop
+const NftCard = ({ nft, onImageClick }) => (
   <motion.div
     className="card-container"
     initial={{ opacity: 0, y: 30 }}
@@ -205,10 +260,11 @@ const NftCard = ({ nft }) => (
       <motion.img 
         src={nft.imageUrl} 
         alt={nft.name} 
-        className="w-full h-40 object-contain rounded-md" 
+        className="w-full h-40 object-contain rounded-md cursor-pointer" // Added cursor-pointer
         onError={(e) => (e.currentTarget.src = "https://placehold.co/400x300/020617/00FFFF?text=SHOTX")}
         whileHover={{ scale: 1.05 }}
         transition={{ duration: 0.3 }}
+        onClick={() => onImageClick(nft)} // Added this onClick handler
       />
       <div className="text-center w-full">
         <h3 className="font-bold text-white truncate font-orbitron">{nft.name}</h3>
@@ -239,6 +295,7 @@ export default function ProfilePage({ account, handleLogout }) {
   const inventoryScrollRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const [selectedNft, setSelectedNft] = useState(null); // NEW: State for the modal
 
   // --- INTERNAL HANDLER FUNCTIONS ---
 
@@ -535,7 +592,12 @@ export default function ProfilePage({ account, handleLogout }) {
                             animate="visible"
                             onScroll={checkScrollPosition}
                         >
-                          {nfts.map((nft) => <div key={nft._id || nft.tokenId} className="flex-shrink-0 w-64"><NftCard nft={nft} /></div>)}
+                          {/* MODIFIED: Pass the onImageClick handler to each card */}
+                          {nfts.map((nft) => (
+                            <div key={nft._id || nft.tokenId} className="flex-shrink-0 w-64">
+                              <NftCard nft={nft} onImageClick={setSelectedNft} />
+                            </div>
+                          ))}
                         </motion.div>
                         
                         {/* Right Arrow */}
@@ -603,6 +665,11 @@ export default function ProfilePage({ account, handleLogout }) {
             </motion.div>
         </motion.div>
       </main>
+
+      {/* NEW: Render the modal conditionally */}
+      {selectedNft && (
+        <NftDetailModal nft={selectedNft} onClose={() => setSelectedNft(null)} />
+      )}
     </div>
   );
 }
