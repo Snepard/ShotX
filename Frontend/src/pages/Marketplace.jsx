@@ -220,7 +220,7 @@ const NftPurchaseCard = ({ nft, ownedIds = [] }) => {
       case 'loading': return 'Checking...';
       case 'approve': return `Approve ${nft.price} SXC`;
       case 'buy': return `Buy for ${nft.price} SXC`;
-      case 'owned': return '✅ Owned';
+      case 'owned': return 'Owned';
       default: return 'Buy';
     }
   };
