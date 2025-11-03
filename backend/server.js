@@ -1,6 +1,7 @@
 // --- Core & Utility Imports ---
 const express = require('express');
 const cors = require('cors');
+const corsOrigin = process.env.CORS_ORIGIN;
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
@@ -24,7 +25,7 @@ const PORT = process.env.PORT || 5001;
 // NOTE: The erroneous function call `configureCloudinary()` has been removed.
 
 // --- MIDDLEWARE ---
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
