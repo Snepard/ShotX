@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { NavLink } from "react-router-dom";
-import { Gamepad2, Menu, X, Wallet, Coins } from "lucide-react";
+import { Menu, X, Wallet, Coins } from "lucide-react";
 
 // The Navbar receives the `account` prop (which is our userData object)
 // and the `handleConnect` prop (which is our handleLogin function).
@@ -98,24 +98,21 @@ const Navbar = ({ account, handleConnect }) => {
         >
           <div
             className={`flex items-center justify-between ${
-              isScrolled ? "px-8 py-4" : "px-8 py-6"
+              isScrolled ? "px-8 py-2" : "px-8 py-4"
             }`}
           >
             <NavLink to="/" className="flex items-center space-x-3 group">
               <div
-                className={`p-2 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl logo-glow navbar-transition group-hover:scale-110 ${
+                className={`p-1 rounded-xl logo-glow navbar-transition group-hover:scale-110 ${
                   isScrolled ? "scale-90" : "scale-100"
                 }`}
               >
-                <Gamepad2 className="w-6 h-6 text-white" />
+                <img
+                  src="/ShotXLogo.png"
+                  alt="ShotX"
+                  className={`${isScrolled ? "h-10" : "h-12"} object-contain`}
+                />
               </div>
-              <span
-                className={`font-black tracking-wider text-white hologram-text navbar-transition ${
-                  isScrolled ? "text-xl" : "text-2xl"
-                }`}
-              >
-                ShotX
-              </span>
             </NavLink>
 
             <div className="hidden lg:flex items-center space-x-2">
