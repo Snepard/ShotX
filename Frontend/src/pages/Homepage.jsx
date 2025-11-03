@@ -275,9 +275,25 @@ body{
     .bento-grid .col-span-4:nth-child(1) { grid-column: span 4; }
 }
 @media (max-width: 640px) {
-    .bento-grid { grid-template-columns: 1fr; }
-    .col-span-1, .col-span-2, .col-span-3, .col-span-4, .col-span-6,
-    .row-span-1, .row-span-2 { grid-column: span 1; grid-row: span 1; }
+    .bento-grid { grid-template-columns: 1fr; }
+
+    /* Make all cards 1 column wide */
+    .col-span-1, .col-span-2, .col-span-3, .col-span-4, .col-span-6 {
+      grid-column: span 1;
+    }
+
+    /* Make standard cards 1 row tall */
+    .row-span-1 {
+      grid-row: span 1;
+    }
+  
+    /*      * THE FIX: Let .row-span-2 (the custom 'HowToViewCoins' card)
+     * size automatically based on its tall content.
+     * Forcing it to 'span 1' was cutting off the content.
+    */
+    .row-span-2 {
+      grid-row: auto;
+    }
 }
 
 /* --- (NEW) Leaderboard Section --- */
