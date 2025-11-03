@@ -104,8 +104,9 @@ const GamePage = ({ connectedAccount }) => {
 
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
   useEffect(() => { scoreRef.current = score; }, [score]);
+  // Load player skin: prefer selectedSkinUrl from localStorage, fall back to public/Shot.png
   useEffect(() => {
-    const skinUrl = localStorage.getItem('selectedSkinUrl');
+    const skinUrl = localStorage.getItem('selectedSkinUrl') || '/Shot.png';
     if (skinUrl) {
       const img = new Image();
       img.src = skinUrl;
@@ -143,7 +144,8 @@ const GamePage = ({ connectedAccount }) => {
     if (!canvas) return;
     const x = canvas.width / 2;
     const y = canvas.height / 2;
-    playerRef.current = new Player(x, y, 10, 'white');
+    // pass loaded skin image (may be null if not yet loaded)
+    playerRef.current = new Player(x, y, 10, 'white', playerSkinImage);
     projectilesRef.current = [];
     enemiesRef.current = [];
     particlesRef.current = [];
@@ -152,7 +154,14 @@ const GamePage = ({ connectedAccount }) => {
     isGameOverRef.current = false;
     setGameResult(null);
     setIsSaving(false);
-  }, []);
+  }, [playerSkinImage]);
+
+  // If the player image loads after init, apply it to the existing player instance
+  useEffect(() => {
+    if (playerRef.current && playerSkinImage) {
+      playerRef.current.image = playerSkinImage;
+    }
+  }, [playerSkinImage]);
 
   const spawnEnemies = useCallback(() => {
     const canvas = canvasRef.current;
