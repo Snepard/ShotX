@@ -72,7 +72,35 @@ const Navbar = ({ account, handleConnect }) => {
         .nav-link { position: relative; overflow: hidden; }
         .nav-link::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2)); border-radius: 50%; transform: translate(-50%, -50%); transition: all 0.3s ease; z-index: -1; }
         .nav-link:hover::before { width: 100%; height: 100%; }
-        .logo-glow { filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.4)); }
+        .logo-glow {
+          position: relative;
+          z-index: 0;
+          /* keep a subtle drop shadow for crisp edges */
+          filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.28));
+        }
+
+        /* cyan halo behind the logo */
+        .logo-glow::after {
+          content: '';
+          position: absolute;
+          /* expand the glow outside the rounded container */
+          inset: -10px;
+          z-index: -1;
+          border-radius: inherit;
+          background: radial-gradient(circle at 50% 50%, rgba(6,182,212,0.45) 0%, rgba(6,182,212,0.18) 30%, transparent 60%);
+          filter: blur(12px);
+          transition: opacity 0.25s ease, transform 0.25s ease;
+          pointer-events: none;
+          opacity: 1;
+          transform: scale(1);
+        }
+
+        /* a bit stronger on hover / group hover */
+        .group:hover .logo-glow::after,
+        .logo-glow:hover::after {
+          opacity: 1;
+          transform: scale(1.06);
+        }
         .btn-primary { background: linear-gradient(135deg, #06b6d4, #3b82f6); border: 1px solid rgba(6, 182, 212, 0.3); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden; }
         .btn-primary::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent); transition: left 0.5s ease; }
         .btn-primary:hover::before { left: 100%; }
