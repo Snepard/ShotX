@@ -6,7 +6,7 @@ const itemController = require('../controllers/itemController');
 router.get('/items', itemController.getAllItems);
 router.get('/users', async (req, res) => {
   try {
-    console.log("LOG: Received request for leaderboard data.");
+  // console.log("LOG: Received request for leaderboard data.");
 
     // Find users, sort, limit, and select
     const users = await User.find({ highestScore: { $gt: 0 } })

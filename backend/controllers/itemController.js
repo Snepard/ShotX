@@ -82,13 +82,13 @@ exports.mintItem = async (req, res) => {
         const metadataUrl = `https://gateway.pinata.cloud/ipfs/${pinataResponse.data.IpfsHash}`;
 
         // 3. Mint the Token on the Blockchain (unchanged)
-        console.log("Submitting mint transaction to the blockchain...");
+    // console.log("Submitting mint transaction to the blockchain...");
         const isUnique = numericSupply === 1;
         const tx = isUnique ? await itemsContract.mintUnique() : await itemsContract.mint(numericSupply);
         
-        console.log(`Transaction sent! Hash: ${tx.hash}`);
+    // console.log(`Transaction sent! Hash: ${tx.hash}`);
         const receipt = await tx.wait(); // Wait for transaction to be mined
-        console.log("Transaction confirmed in block:", receipt.blockNumber);
+    // console.log("Transaction confirmed in block:", receipt.blockNumber);
 
         // 4. Extract Token ID from Transaction Events (unchanged)
         let tokenId = null;
@@ -109,14 +109,14 @@ exports.mintItem = async (req, res) => {
         console.log(`✅ Token ID ${tokenId} successfully minted to backend wallet.`);
 
         // --- NEW AUTOMATION STEP 4A: Stock the Marketplace ---
-        console.log(`Transferring ${numericSupply} of Token ID ${tokenId} to Marketplace...`);
+    // console.log(`Transferring ${numericSupply} of Token ID ${tokenId} to Marketplace...`);
         const stockTx = await itemsContract.safeTransferFrom(wallet.address, MARKETPLACE_CONTRACT_ADDRESS, tokenId, numericSupply, "0x");
         await stockTx.wait();
         console.log(`✅ Marketplace successfully stocked with Token ID ${tokenId}.`);
         // -----------------------------------------------------
 
         // --- NEW AUTOMATION STEP 4B: List the Item for Sale ---
-        console.log(`Listing Token ID ${tokenId} on the marketplace...`);
+    // console.log(`Listing Token ID ${tokenId} on the marketplace...`);
         const parsedPrice = ethers.parseUnits(price.toString(), 18);
         const listTx = await marketplaceContract.listItem(tokenId, parsedPrice);
         await listTx.wait();

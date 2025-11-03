@@ -12,7 +12,7 @@ export const web3Mock = {
   },
   simulateMintTokensForScore: async (score) => {
     await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log(`Simulating minting tokens for a score of ${score}`);
+  // console.log(`Simulating minting tokens for a score of ${score}`);
     return score / 100;
   },
   simulateBuy: async (itemId, currentBalance) => {
@@ -22,7 +22,7 @@ export const web3Mock = {
     if (currentBalance < item.price) {
       throw new Error("Insufficient balance");
     }
-    console.log(`Simulating purchase of item ${itemId} for ${item.price} SHOTX`);
+  // console.log(`Simulating purchase of item ${itemId} for ${item.price} SHOTX`);
     return { success: true, item, newBalance: currentBalance - item.price };
   },
 };

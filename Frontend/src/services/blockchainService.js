@@ -24,36 +24,36 @@ export const verifyExistingLogin = async () => {
     try {
         const response = await axios.get(`${API_URL}/auth/verify`, { withCredentials: true });
         if (response.data && response.data.loggedIn) {
-            console.log("✅ Existing session verified for address:", response.data.address);
+            // console.log("✅ Existing session verified for address:", response.data.address);
             return response.data.address;
         }
         return null;
     } catch (error) {
-        console.log("Verification check failed:", error.message);
+    // console.log("Verification check failed:", error.message);
         return null;
     }
 };
 
 export const loginAndAuthenticate = async () => {
     try {
-        console.log("1. Authentication process initiated.");
+    // console.log("1. Authentication process initiated.");
         if (!window.ethereum) throw new Error("MetaMask is not installed.");
         
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const address = await signer.getAddress();
         
-        console.log("2. Signer obtained for address:", address);
+    // console.log("2. Signer obtained for address:", address);
 
         const messageResponse = await axios.get(`${API_URL}/auth/message`);
         const { message } = messageResponse.data;
         if (!message) throw new Error("Could not retrieve message from server.");
 
-        console.log("3. Received message from backend:", message);
+    // console.log("3. Received message from backend:", message);
 
-        console.log("4. Requesting signature from user...");
-        const signature = await signer.signMessage(message);
-        console.log("5. Signature received!", signature);
+    // console.log("4. Requesting signature from user...");
+    const signature = await signer.signMessage(message);
+    // console.log("5. Signature received!", signature);
  
         const loginResponse = await axios.post(`${API_URL}/auth/login`, {
             address,
@@ -61,7 +61,7 @@ export const loginAndAuthenticate = async () => {
             message,
         }, { withCredentials: true });
 
-        console.log("6. ✅ Login successful! User is authenticated.");
+    // console.log("6. ✅ Login successful! User is authenticated.");
         
         return loginResponse.data.user;
 
@@ -74,7 +74,7 @@ export const loginAndAuthenticate = async () => {
 export const logoutUser = async () => {
     try {
         await axios.post(`${API_URL}/auth/logout`, {}, { withCredentials: true });
-        console.log("✅ Logged out successfully from backend.");
+    // console.log("✅ Logged out successfully from backend.");
         return true;
     } catch (error) {
         console.error("❌ Logout failed:", error);
@@ -117,7 +117,7 @@ export const updateScore = async (walletAddress, newScore) => {
             newScore,
         }, { withCredentials: true });
         
-        console.log('✅ Score saved:', response.data.message);
+    // console.log('✅ Score saved:', response.data.message);
         return response.data;
     } catch (error) {
         const errorMsg = error.response?.data?.message || error.message;
@@ -130,7 +130,7 @@ export const updateScore = async (walletAddress, newScore) => {
 export const convertScoreToCoins = async (walletAddress) => {
     try {
         const response = await axios.post(`${API_URL}/api/score/convert`, { walletAddress });
-        console.log("✅ Score conversion successful:", response.data.message);
+    // console.log("✅ Score conversion successful:", response.data.message);
         alert(response.data.message);
         return response.data;
     } catch (error) {
@@ -224,11 +224,11 @@ export const approvePurchase = async (price) => {
         const { coinContract } = await getContracts();
         const priceInWei = ethers.parseUnits(price.toString(), 18);
         
-        console.log(`Approving marketplace to spend ${price} SXC...`);
+    // console.log(`Approving marketplace to spend ${price} SXC...`);
         const tx = await coinContract.approve(MARKETPLACE_ADDRESS, priceInWei);
         await tx.wait();
         
-        console.log("✅ Approval successful!");
+    // console.log("✅ Approval successful!");
         return true;
     } catch (error) {
         console.error("❌ Error during approval:", error);
@@ -240,11 +240,11 @@ export const buyItem = async (tokenId) => {
     try {
         const { marketplaceContract } = await getContracts();
         
-        console.log(`Purchasing Token ID: ${tokenId}...`);
+    // console.log(`Purchasing Token ID: ${tokenId}...`);
         const tx = await marketplaceContract.purchaseItem(tokenId);
         await tx.wait();
         
-        console.log(`✅ Purchase successful for Token ID: ${tokenId}!`);
+    // console.log(`✅ Purchase successful for Token ID: ${tokenId}!`);
         return true;
     } catch (error) {
         console.error("❌ Error purchasing item:", error);

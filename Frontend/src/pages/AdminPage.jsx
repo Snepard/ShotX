@@ -208,7 +208,7 @@ export default function AdminPage() {
         withCredentials: true // Good practice for admin routes
       });
 
-      console.log(response.data);
+  // console.log(response.data);
       setMessage(`Success! Minted item '${response.data.item.name}' with Token ID: ${response.data.item.tokenId}`);
       
       // Clear the form on success

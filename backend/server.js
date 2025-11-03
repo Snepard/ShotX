@@ -38,7 +38,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api", publicRoutes);
 
 // --- DATABASE CONNECTION ---
-console.log("Attempting to connect to MongoDB...");
+// console.log("Attempting to connect to MongoDB...");
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connection established successfully."))
@@ -71,14 +71,14 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // =================================================================
 
 app.get("/auth/message", (req, res) => {
-  console.log("LOG: Received request for auth message.");
+  // console.log("LOG: Received request for auth message.");
   res.json({
     message: `Welcome to ShotX! Sign this message to log in. Nonce: ${Date.now()}`,
   });
 });
 
 app.post("/auth/login", async (req, res) => {
-  console.log("1. Received /auth/login request.");
+  // console.log("1. Received /auth/login request.");
   const { address, signature, message } = req.body;
   if (!address || !signature || !message) {
     console.error(
@@ -86,32 +86,32 @@ app.post("/auth/login", async (req, res) => {
     );
     return res.status(400).send("Missing login credentials.");
   }
-  console.log(`2. Attempting to verify signature for address: ${address}`);
+  // console.log(`2. Attempting to verify signature for address: ${address}`);
 
   try {
     const recoveredAddress = ethers.verifyMessage(message, signature);
-    console.log(`3. Signature recovered address: ${recoveredAddress}`);
+  // console.log(`3. Signature recovered address: ${recoveredAddress}`);
 
     if (recoveredAddress.toLowerCase() === address.toLowerCase()) {
-      console.log("4. ✅ Signature VERIFIED. Checking database...");
+  // console.log("4. ✅ Signature VERIFIED. Checking database...");
       const lowerCaseAddress = address.toLowerCase();
       let user = await User.findOne({ walletAddress: lowerCaseAddress });
 
       if (!user) {
-        console.log(`5. User not found. Creating new user in DB...`);
+  // console.log(`5. User not found. Creating new user in DB...`);
         user = new User({ walletAddress: lowerCaseAddress });
         await user.save();
-        console.log(`6. ✅ New user CREATED for address: ${lowerCaseAddress}`);
+  // console.log(`6. ✅ New user CREATED for address: ${lowerCaseAddress}`);
       } else {
-        console.log(`5. ✅ User FOUND in database.`);
+  // console.log(`5. ✅ User FOUND in database.`);
       }
 
-      console.log(`Syncing on-chain balance for ${lowerCaseAddress}`);
+  // console.log(`Syncing on-chain balance for ${lowerCaseAddress}`);
       const latestBalance = await getOnChainBalance(lowerCaseAddress);
       user.shotxBalance = latestBalance;
 
       // NEW: Sync owned NFTs from chain and store in MongoDB, mirroring balance sync
-      console.log(`Syncing owned NFTs for ${lowerCaseAddress}`);
+  // console.log(`Syncing owned NFTs for ${lowerCaseAddress}`);
       const ownedNfts = await getOwnedNFTsOnChain(lowerCaseAddress);
       user.ownedNFTs = ownedNfts;
       await user.save();
@@ -126,7 +126,7 @@ app.post("/auth/login", async (req, res) => {
         sameSite: "strict",
         maxAge: 3600000,
       });
-      console.log("7. ✅ JWT cookie set. Sending success response.");
+  // console.log("7. ✅ JWT cookie set. Sending success response.");
       res.status(200).json({ message: "Logged in successfully", user });
     } else {
       console.error(
@@ -155,7 +155,7 @@ app.get("/auth/verify", (req, res) => {
 });
 
 app.post("/auth/logout", (req, res) => {
-  console.log("LOG: Received request to log out.");
+  // console.log("LOG: Received request to log out.");
   res.clearCookie("token", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -308,9 +308,9 @@ app.post("/api/score/convert", async (req, res) => {
     }
 
     const amountToMint = ethers.parseUnits(coinsToMint.toString(), 18);
-    console.log(
-      `Attempting to mint ${coinsToMint} SXC for ${lowerCaseAddress}`
-    );
+    // console.log(
+    //   `Attempting to mint ${coinsToMint} SXC for ${lowerCaseAddress}`
+    // );
 
     const tx = await shotxCoinContract.awardCoins(
       lowerCaseAddress,
@@ -318,8 +318,8 @@ app.post("/api/score/convert", async (req, res) => {
     );
     await tx.wait();
 
-    console.log(`Transaction confirmed! Minted ${coinsToMint} SXC.`);
-    console.log(`Syncing new on-chain balance for ${lowerCaseAddress}`);
+  // console.log(`Transaction confirmed! Minted ${coinsToMint} SXC.`);
+  // console.log(`Syncing new on-chain balance for ${lowerCaseAddress}`);
     const newTotalBalance = await getOnChainBalance(lowerCaseAddress);
     user.shotxBalance = newTotalBalance;
     user.accumulatedScore = 0;

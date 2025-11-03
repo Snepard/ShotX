@@ -201,7 +201,7 @@ const NftPurchaseCard = ({ nft, ownedIds = [], onImageClick }) => { // Add onIma
     try {
       const nftIdStr = String(nft._id || '');
       if (nftIdStr && Array.isArray(ownedIds) && ownedIds.map(String).includes(nftIdStr)) {
-        console.log(`NFT ${nft.name} (${nftIdStr}) is owned by user`);
+        // console.log(`NFT ${nft.name} (${nftIdStr}) is owned by user`);
         setButtonState('owned');
         return;
       }
