@@ -1,7 +1,7 @@
 // --- Core & Utility Imports ---
 const express = require("express");
 const cors = require("cors");
-const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173/";
+const corsOrigin = (process.env.CORS_ORIGIN || "http://localhost:5173").replace(/\/$/, '');
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
