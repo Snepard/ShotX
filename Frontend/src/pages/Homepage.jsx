@@ -1818,8 +1818,9 @@ export default function ShotXWebsite() {
   // Fetch 3 random items from the backend and shape them for NFTCard
   useEffect(() => {
     const fetchFeatured = async () => {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
       try {
-        const res = await fetch("http://localhost:5001/api/items", {
+        const res = await fetch(`${API_URL}/api/items`, { 
           credentials: "include",
         });
         if (!res.ok) throw new Error("Failed to fetch items");
