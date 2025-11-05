@@ -21,33 +21,57 @@ const SHOTX_ITEMS_ADDRESS = import.meta.env.VITE_SHOTX_ITEMS_ADDRESS;
 // ===================================================================================
 
 export const verifyExistingLogin = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/auth/verify`, { withCredentials: true });
-        if (response.data && response.data.loggedIn) {
+    try {
+        const response = await axios.get(`${API_URL}/auth/verify`, { withCredentials: true });
+        if (response.data && response.data.loggedIn) {
             // console.log("✅ Existing session verified for address:", response.data.address);
-            return response.data.address;
-        }
-        return null;
-    } catch (error) {
+            
+            // Reconnect to MetaMask silently if available
+            if (window.ethereum) {
+                try {
+                    const provider = new ethers.BrowserProvider(window.ethereum);
+                    const accounts = await provider.listAccounts();
+                    if (accounts.length > 0) {
+                        const connectedAddress = await accounts[0].getAddress();
+                        // Verify the connected wallet matches the logged-in session
+                        if (connectedAddress.toLowerCase() === response.data.address.toLowerCase()) {
+                            localStorage.setItem('shotx_wallet', connectedAddress.toLowerCase());
+                            return response.data.address;
+                        }
+                    }
+                } catch (walletError) {
+                    console.warn("Wallet reconnection failed:", walletError.message);
+                }
+            }
+            
+            // Even if wallet reconnection fails, return the address if session is valid
+            return response.data.address;
+        }
+        
+        // No valid session, clear localStorage
+        localStorage.removeItem('shotx_wallet');
+        return null;
+    } catch (error) {
     // console.log("Verification check failed:", error.message);
-        return null;
-    }
+        localStorage.removeItem('shotx_wallet');
+        return null;
+    }
 };
 
 export const loginAndAuthenticate = async () => {
-    try {
+    try {
     // console.log("1. Authentication process initiated.");
-        if (!window.ethereum) throw new Error("MetaMask is not installed.");
-        
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
-        
+        if (!window.ethereum) throw new Error("MetaMask is not installed.");
+        
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        
     // console.log("2. Signer obtained for address:", address);
 
-        const messageResponse = await axios.get(`${API_URL}/auth/message`);
-        const { message } = messageResponse.data;
-        if (!message) throw new Error("Could not retrieve message from server.");
+        const messageResponse = await axios.get(`${API_URL}/auth/message`);
+        const { message } = messageResponse.data;
+        if (!message) throw new Error("Could not retrieve message from server.");
 
     // console.log("3. Received message from backend:", message);
 
@@ -55,34 +79,40 @@ export const loginAndAuthenticate = async () => {
     const signature = await signer.signMessage(message);
     // console.log("5. Signature received!", signature);
  
-        const loginResponse = await axios.post(`${API_URL}/auth/login`, {
-            address,
-            signature,
-            message,
-        }, { withCredentials: true });
+        const loginResponse = await axios.post(`${API_URL}/auth/login`, {
+            address,
+            signature,
+            message,
+        }, { withCredentials: true });
 
     // console.log("6. ✅ Login successful! User is authenticated.");
-        
-        return loginResponse.data.user;
+        
+        // Store wallet address in localStorage to persist login state
+        localStorage.setItem('shotx_wallet', address.toLowerCase());
+        
+        return loginResponse.data.user;
 
-    } catch (error) {
-        console.error("❌ Failed to connect wallet and authenticate:", error);
-        return null;
-    }
-};
-
-export const logoutUser = async () => {
-    try {
-        await axios.post(`${API_URL}/auth/logout`, {}, { withCredentials: true });
+    } catch (error) {
+        console.error("❌ Failed to connect wallet and authenticate:", error);
+        localStorage.removeItem('shotx_wallet');
+        return null;
+    }
+};export const logoutUser = async () => {
+    try {
+        await axios.post(`${API_URL}/auth/logout`, {}, { withCredentials: true });
     // console.log("✅ Logged out successfully from backend.");
-        return true;
-    } catch (error) {
-        console.error("❌ Logout failed:", error);
-        return false;
-    }
-};
-
-export const fetchUserProfile = async (walletAddress) => {
+        
+        // Clear localStorage on logout
+        localStorage.removeItem('shotx_wallet');
+        
+        return true;
+    } catch (error) {
+        console.error("❌ Logout failed:", error);
+        // Clear localStorage even if backend logout fails
+        localStorage.removeItem('shotx_wallet');
+        return false;
+    }
+};export const fetchUserProfile = async (walletAddress) => {
     if (!walletAddress) return null;
     try {
         const response = await axios.get(`${API_URL}/api/user/${walletAddress}`);

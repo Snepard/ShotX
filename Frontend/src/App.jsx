@@ -31,6 +31,40 @@ const AppContent = () => {
       setIsLoading(false);
     };
     checkAuthStatus();
+
+    // Listen for MetaMask account changes
+    if (window.ethereum) {
+      const handleAccountsChanged = async (accounts) => {
+        if (accounts.length === 0) {
+          // User disconnected their wallet
+          await handleLogout();
+        } else {
+          // User switched accounts - check if it matches logged in account
+          const currentAddress = accounts[0].toLowerCase();
+          const storedAddress = localStorage.getItem('shotx_wallet');
+          
+          if (storedAddress && currentAddress !== storedAddress) {
+            // Account mismatch - logout and require re-authentication
+            await handleLogout();
+            alert('Wallet account changed. Please connect with your logged-in account.');
+          }
+        }
+      };
+
+      const handleChainChanged = () => {
+        // Reload the page when chain changes
+        window.location.reload();
+      };
+
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
+
+      // Cleanup listeners on unmount
+      return () => {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
+      };
+    }
   }, []);
 
   const handleLogin = async () => {
